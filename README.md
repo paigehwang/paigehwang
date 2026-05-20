@@ -1,5 +1,8 @@
 ## Hi there 👋
-
+<div align= "center">
+    <img src="https://capsule-render.vercel.app/api?type=soft&color=004229&height=180&text=Pages%20of%20Paige%20📖&animation=&fontColor=ffffff&fontSize=40" />
+    </div>
+    
 <!--
 **paigehwang/paigehwang** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
 

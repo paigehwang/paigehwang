@@ -1,0 +1,10 @@
+{
+  "name": "okinawa-nihongo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "오키나와 여행용 일본어 회화 앱 (아이폰 PWA + 로컬 Claude Code 브리지)",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": { "node": ">=18" }
+}

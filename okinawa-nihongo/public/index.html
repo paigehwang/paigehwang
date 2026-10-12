@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="めんそーれ" />
+  <meta name="theme-color" content="#f7f4ee" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#14181c" media="(prefers-color-scheme: dark)" />
+  <link rel="apple-touch-icon" href="icon-180.png" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <title>めんそーれ 日本語</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="top">
+    <div class="brand">めんそーれ <span>日本語</span></div>
+    <div class="dday" id="dday"></div>
+    <button class="status" id="status" aria-label="서버 연결 상태"><i></i></button>
+  </header>
+
+  <main id="view"></main>
+
+  <nav class="tabs">
+    <button data-tab="home"><b>🏝</b>코스</button>
+    <button data-tab="talk"><b>💬</b>회화</button>
+    <button data-tab="review"><b>🃏</b>복습</button>
+    <button data-tab="book"><b>⭐</b>내 표현</button>
+    <button data-tab="kana"><b>あ</b>문자</button>
+  </nav>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="curriculum.js"></script>
+  <script src="kana.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

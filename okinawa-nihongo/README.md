@@ -13,20 +13,21 @@
                 ◀──────────  일본어 대사 + 읽기 + 한국어 뜻 + 교정 + 힌트  ◀──
 ```
 
-## ☀️ 일어나서 할 일 (5분)
+## ☀️ 바로 시작 (Tailscale이 있다면 이게 제일 쉬워요)
 
 ```bash
 # 처음이면: git clone -b okinawa-nihongo https://github.com/paigehwang/paigehwang.git
 cd paigehwang/okinawa-nihongo && git pull
-brew install cloudflared      # 처음 한 번만 (https 주소용)
-npm run tunnel                # 또는 start.command 더블클릭
+npm run ts        # Mac은 start.command 더블클릭도 같아요
 ```
 
-1. 컴퓨터 브라우저에 **연결 QR 페이지**가 열려요 (안 열리면 `http://localhost:8787/connect.html`)
-2. 아이폰 카메라로 **🔒 https QR**을 비추고 → 사파리에서 열기 → 홈 화면에 추가
-3. 🎙 말하기 탭에서 마이크 허용 → 첫 따라 말하기 시작!
+1. 서버가 `tailscale serve`로 https를 켜고 **고정 주소**(`https://내맥이름.tailxxxx.ts.net`)를 자동으로 찾아요.
+   - 처음 한 번은 HTTPS 인증서를 켜라는 링크가 터미널에 나올 수 있어요. 링크로 들어가 켠 다음 다시 `npm run ts`를 실행하세요.
+2. 컴퓨터 브라우저에서 `http://localhost:8787/connect.html`을 열고 **🔒 https QR**을 아이폰 카메라로 찍어요. 이때 아이폰 Tailscale은 켜져 있어야 해요.
+3. 사파리 공유 → **홈 화면에 추가** → 홈 화면 앱을 처음 열 때 ● → 접속 키를 한 번 넣어요.
+4. 이후로는 주소가 바뀌지 않아요. 컴퓨터에서 `npm run ts`만 켜 두면 **홈 화면 앱을 매일 그대로** 쓸 수 있어요.
 
-> **왜 https가 필요해요?** 아이폰 사파리는 `http://192.168…` 같은 보안 연결이 아닌 주소에서 마이크를 막을 수 있어요. https 주소로 열면 마이크가 되고, 집 밖(카페·출퇴근길)에서도 쓸 수 있어요.
+> 아이폰 사파리는 `http://192.168…` 같은 주소에서 마이크를 막을 수 있어요. 그래서 https 주소가 필요해요. Tailscale이 없으면 `npm run tunnel`(Cloudflare 임시 주소)로도 돼요.
 
 ## 무엇을 참고했나
 
@@ -59,18 +60,14 @@ npm run tunnel                # 또는 start.command 더블클릭
 
 | 방법 | 명령 | 마이크 | 집 밖 | 주소 고정 |
 |---|---|---|---|---|
-| **A. Tailscale (추천)** | `PUBLIC_URL=https://내맥.xxx.ts.net npm start` | ✅ | ✅ | ✅ 홈 화면 앱 그대로 계속 사용 |
+| **A. Tailscale (추천)** | `npm run ts` | ✅ | ✅ | ✅ 홈 화면 앱 그대로 계속 사용 |
 | **B. Cloudflare 임시 주소** | `npm run tunnel` | ✅ | ✅ | ❌ 켤 때마다 바뀜 (QR 다시 찍기) |
 | C. 같은 Wi-Fi | `npm start` | ⚠️ 막힐 수 있음 | ❌ | ✅ |
 
 어느 방법이든 서버를 켠 뒤 컴퓨터에서 **`http://localhost:8787/connect.html`**을 열면 아이폰용 QR이 나와요. Mac은 `start.command`를 더블클릭하면 서버가 켜지고 QR 페이지까지 자동으로 열려요.
 
-### A. Tailscale로 고정 https 주소 만들기 (한 번만 설정)
-1. Mac과 아이폰에 **Tailscale** 앱을 설치하고 같은 계정으로 로그인해요 (무료, 내 기기끼리만 보이는 비공개 네트워크).
-2. Mac 터미널에서 `tailscale serve --bg 8787`을 실행하면 `https://내맥이름.tailxxxx.ts.net` 주소가 나와요.
-   - 처음엔 Tailscale 관리 페이지에서 HTTPS 인증서 사용을 켜라는 안내가 나올 수 있어요. 안내를 따라 켜면 돼요.
-3. 이후로는 `PUBLIC_URL=https://내맥이름.tailxxxx.ts.net npm start`로 켜면 QR 페이지에 그 주소가 나와요.
-4. 아이폰은 Tailscale을 켜 둔 상태에서 그 주소로 열고, 홈 화면에 추가하면 매일 그대로 쓸 수 있어요.
+### A. Tailscale (고정 https 주소)
+Mac과 아이폰에 Tailscale을 같은 계정으로 로그인해 두고 `npm run ts`를 실행하면 끝이에요. 서버가 `tailscale serve --bg 8787`을 실행하고 내 기기 주소를 찾아서 QR 페이지에 띄워줘요. 주소를 직접 지정하려면 `PUBLIC_URL=https://… npm start`로 켜면 돼요.
 
 ### B. Cloudflare 임시 주소
 `brew install cloudflared`를 한 번 설치한 뒤 `npm run tunnel`을 실행해요. 몇 초 뒤 `https://….trycloudflare.com` 주소와 QR이 나와요. 계정이 필요 없는 대신 실행할 때마다 주소가 바뀌어요. 접속 키(`?k=`)가 없으면 회화 기능을 쓸 수 없어요.
@@ -79,6 +76,19 @@ npm run tunnel                # 또는 start.command 더블클릭
 https 주소로 한 번 열면 앱이 아이폰에 저장돼요. 그래서 **여행 중 컴퓨터가 꺼져 있어도** 표현집·따라 말하기·복습·문자표는 열려요. 회화(Claude)만 컴퓨터 서버가 필요해요.
 
 > 공부하는 동안 Claude 회화를 쓰려면 컴퓨터를 켜 두세요 (잠자기 상태면 연결이 끊겨요).
+
+## 안드로이드에서도 되나요?
+네, 따로 만들 필요 없이 그대로 돼요. 웹앱(PWA)이라 같은 주소를 **안드로이드 크롬**으로 열면 돼요.
+- 크롬 메뉴(⋮) → **홈 화면에 추가 / 앱 설치**를 누르면 앱처럼 설치돼요.
+- 음성 인식은 크롬이 기본으로 지원해요. 마이크 권한만 허용하면 돼요.
+- 일본어 목소리가 안 나오면: 설정 → 일반 관리 → 텍스트 음성 변환 → Google 음성 엔진 → 일본어 음성 데이터를 설치하세요.
+
+## 여러 명이 써도 되나요?
+- **진도·점수·스트릭·저장 표현·대화 기록**은 각자의 폰 브라우저에만 저장돼요. 그래서 같은 주소로 여러 명이 접속해도 **각자 자기 속도로** 공부할 수 있어요.
+- **코스 일정**은 사람마다 설정 → 내 일정에서 바꿀 수 있어요 (시작일·출국일, "오늘부터 1주차로 시작하기").
+- 단, Claude 회화는 **서버를 켠 사람의 Claude 구독 한도**를 같이 써요. 그리고 한 번에 한 명씩 차례로 답해요.
+  - 가족·친구가 내 서버를 쓰게 하려면: Tailscale 기기 공유로 내 Mac을 공유하고 접속 키를 알려주면 돼요.
+  - 각자 한도로 쓰게 하려면: 각자 이 저장소를 받아서 **자기 컴퓨터의 Claude Code**로 `npm run ts`를 실행하면 돼요.
 
 ## 3. 화면
 

@@ -1,6 +1,6 @@
 // 츄라톡 오프라인 캐시: 컴퓨터 서버가 꺼져 있어도 표현집·따라 말하기·복습은 열리도록
-const VERSION = "churatalk-v3";
-const ASSETS = ["/", "/index.html", "/style.css", "/app.js", "/curriculum.js", "/kana.js", "/shisa.svg", "/manifest.webmanifest", "/icon-180.png", "/icon-512.png"];
+const VERSION = "churatalk-v4";
+const ASSETS = ["/", "/index.html", "/style.css", "/app.js", "/curriculum.js", "/kana.js", "/shisa.svg", "/manifest.webmanifest", "/icon-180.png", "/icon-512.png", "/icon-192.png"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));

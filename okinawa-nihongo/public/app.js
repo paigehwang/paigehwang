@@ -35,9 +35,12 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "
 const attr = (o) => esc(JSON.stringify(o));
 const dayKey = (d = new Date()) => d.toLocaleDateString("sv-SE");
 const today = () => dayKey();
-const startDate = new Date(C.start + "T00:00:00");
-const tripDate = new Date(C.trip + "T00:00:00");
-const currentWeek = () => Math.min(12, Math.max(1, Math.floor((Date.now() - startDate) / (7 * DAY)) + 1));
+// 사람마다 시작일·출국일이 달라요 (설정에서 바꿀 수 있음)
+const startDay = () => S.prefs.start || C.start;
+const tripDay = () => S.prefs.trip || C.trip;
+const startDate = () => new Date(startDay() + "T00:00:00");
+const tripDate = () => new Date(tripDay() + "T00:00:00");
+const currentWeek = () => Math.min(12, Math.max(1, Math.floor((Date.now() - startDate()) / (7 * DAY)) + 1));
 const unitById = (id) => C.units.find((u) => u.id === id);
 const sceneById = (id) => {
   for (const u of C.units) for (const s of u.scenes) if (s.id === id) return { ...s, unit: u, em: EMOJI[u.id] };
@@ -53,7 +56,7 @@ function toast(msg) {
   toast.t = setTimeout(() => t.classList.remove("show"), 1700);
 }
 const hangul = (yomi) => (S.prefs.hangul && yomi ? `<div class="hg">[${esc(Kana.toHangul(yomi))}]</div>` : "");
-const ddays = () => Math.ceil((tripDate - new Date(today() + "T00:00:00")) / DAY);
+const ddays = () => Math.ceil((tripDate() - new Date(today() + "T00:00:00")) / DAY);
 
 // ---------- XP · 스트릭 ----------
 const xpToday = () => S.xp[today()] || 0;
@@ -893,6 +896,13 @@ function renderSettings() {
       <input class="field" id="tok" placeholder="접속 키 (8자리)" value="${esc(S.token)}" autocapitalize="off" autocomplete="off" />
       <button class="btn" id="saveTok">저장하고 연결 확인</button>
     </div>${micWarn()}
+    <h3>내 일정</h3>
+    <div class="card stack">
+      <label class="toggle" style="justify-content:space-between">📅 코스 시작일 <input class="field" style="width:auto;font-size:15px;letter-spacing:0;padding:8px 10px" type="date" id="pStart" value="${startDay()}"/></label>
+      <label class="toggle" style="justify-content:space-between">✈️ 출국일 <input class="field" style="width:auto;font-size:15px;letter-spacing:0;padding:8px 10px" type="date" id="pTrip" value="${tripDay()}"/></label>
+      <button class="btn ghost" id="startToday">오늘부터 1주차로 시작하기</button>
+      <div class="muted">12주 코스는 시작일 기준으로 한 주에 한 유닛씩 열려요. 진도·점수는 이 기기에만 저장돼서 사람마다 따로 관리돼요.</div>
+    </div>
     <h3>연습</h3>
     <div class="card stack">
       <label class="toggle"><input type="checkbox" id="pHf" ${S.prefs.handsfree ? "checked" : ""}/> 연속 모드: 상대가 말하면 자동으로 마이크 켜기</label>
@@ -905,6 +915,10 @@ function renderSettings() {
   const conn = async () => { $("#conn").textContent = (await checkServer()) ? "🟢 연결됨" : "🔴 연결 안 됨"; };
   conn();
   $("#saveTok").addEventListener("click", () => { S.token = $("#tok").value.trim(); save(); conn(); });
+  const setDate = (k, v) => { if (v) { S.prefs[k] = v; save(); toast("일정을 저장했어요"); renderChips(); } };
+  $("#pStart").addEventListener("change", (e) => setDate("start", e.target.value));
+  $("#pTrip").addEventListener("change", (e) => setDate("trip", e.target.value));
+  $("#startToday").addEventListener("click", () => { setDate("start", today()); renderSettings(); });
   $("#pHf").addEventListener("change", (e) => { S.prefs.handsfree = e.target.checked; save(); });
   $("#pHangul").addEventListener("change", (e) => { S.prefs.hangul = e.target.checked; save(); });
   $("#pAuto").addEventListener("change", (e) => { S.prefs.autoplay = e.target.checked; save(); });

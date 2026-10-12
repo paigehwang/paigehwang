@@ -8,7 +8,7 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const crypto = require("crypto");
-const { spawn } = require("child_process");
+const { spawn, execFileSync } = require("child_process");
 const CURRICULUM = require("./public/curriculum.js");
 
 const PORT = Number(process.env.PORT || 8787);
@@ -20,6 +20,7 @@ const PUBLIC = path.join(ROOT, "public");
 const WORKDIR = path.join(ROOT, ".claude-work"); // CLAUDE.md 등이 섞이지 않도록 빈 폴더에서 실행
 const TOKEN_FILE = path.join(ROOT, ".token");
 const USE_TUNNEL = process.argv.includes("--tunnel") || process.env.NIHONGO_TUNNEL === "1";
+const USE_TAILSCALE = process.argv.includes("--tailscale") || process.env.NIHONGO_TAILSCALE === "1";
 // 고정 https 주소 (예: tailscale serve 로 만든 https://내맥.tailxxxx.ts.net)
 let publicUrls = (process.env.PUBLIC_URL || "").split(",").map((u) => u.trim().replace(/\/$/, "")).filter(Boolean);
 
@@ -235,6 +236,29 @@ const server = http.createServer(async (req, res) => {
   json(res, 404, { error: "not found" });
 });
 
+// Tailscale: `tailscale serve`로 https를 켜고 내 기기 고정 주소(https://내맥.xxx.ts.net)를 찾아요
+function setupTailscale() {
+  const bins = [process.env.TAILSCALE_BIN, "tailscale", "/Applications/Tailscale.app/Contents/MacOS/Tailscale"].filter(Boolean);
+  const run = (bin, args) => execFileSync(bin, args, { encoding: "utf8", timeout: 15000, stdio: ["ignore", "pipe", "pipe"] });
+  const bin = bins.find((b) => { try { run(b, ["version"]); return true; } catch { return false; } });
+  if (!bin) {
+    console.log("  ⚠️  tailscale 명령을 찾지 못했어요. Tailscale 앱이 설치·로그인돼 있는지 확인하세요.");
+    return;
+  }
+  try {
+    run(bin, ["serve", "--bg", String(PORT)]);
+  } catch (e) {
+    const msg = String(e.stderr || e.message);
+    console.log("  ⚠️  tailscale serve 실패:\n" + msg.split("\n").map((l) => "     " + l).join("\n"));
+    console.log("     ↳ 처음이면 위에 나온 링크로 들어가 HTTPS 인증서 사용을 켠 뒤 다시 실행하세요.");
+  }
+  try {
+    const st = JSON.parse(run(bin, ["status", "--json"]));
+    const dns = String(st.Self?.DNSName || "").replace(/\.$/, "");
+    if (dns) publicUrls = [`https://${dns}`, ...publicUrls.filter((u) => u !== `https://${dns}`)];
+  } catch {}
+}
+
 function startTunnel() {
   const bin = process.env.CLOUDFLARED_BIN || "cloudflared";
   const child = spawn(bin, ["tunnel", "--no-autoupdate", "--url", `http://localhost:${PORT}`], { stdio: ["ignore", "pipe", "pipe"] });
@@ -258,6 +282,8 @@ function startTunnel() {
   process.on("SIGINT", stop);
   process.on("SIGTERM", stop);
 }
+
+if (USE_TAILSCALE) setupTailscale();
 
 server.listen(PORT, "0.0.0.0", () => {
   console.log("\n🌺 츄라톡(ちゅらトーク) 서버가 켜졌어요\n");

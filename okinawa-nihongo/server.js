@@ -19,6 +19,9 @@ const ROOT = __dirname;
 const PUBLIC = path.join(ROOT, "public");
 const WORKDIR = path.join(ROOT, ".claude-work"); // CLAUDE.md 등이 섞이지 않도록 빈 폴더에서 실행
 const TOKEN_FILE = path.join(ROOT, ".token");
+const USE_TUNNEL = process.argv.includes("--tunnel") || process.env.NIHONGO_TUNNEL === "1";
+// 고정 https 주소 (예: tailscale serve 로 만든 https://내맥.tailxxxx.ts.net)
+let publicUrls = (process.env.PUBLIC_URL || "").split(",").map((u) => u.trim().replace(/\/$/, "")).filter(Boolean);
 
 fs.mkdirSync(WORKDIR, { recursive: true });
 
@@ -141,6 +144,7 @@ const MIME = {
   ".js": "text/javascript; charset=utf-8",
   ".css": "text/css; charset=utf-8",
   ".webmanifest": "application/manifest+json",
+  ".json": "application/json; charset=utf-8",
   ".png": "image/png",
   ".svg": "image/svg+xml",
 };
@@ -173,7 +177,33 @@ function readBody(req) {
   });
 }
 
+function lanIps() {
+  return Object.values(os.networkInterfaces())
+    .flat()
+    .filter((i) => i && i.family === "IPv4" && !i.internal)
+    .map((i) => i.address);
+}
+
+// 이 컴퓨터에서 직접 연 요청인지 (터널·프록시를 거친 요청은 제외)
+function isLocalDirect(req) {
+  const ra = req.socket.remoteAddress || "";
+  const host = String(req.headers.host || "").split(":")[0];
+  const proxied = ["x-forwarded-for", "cf-connecting-ip", "tailscale-user-login", "forwarded"].some((h) => req.headers[h]);
+  return /^(::1|127\.|::ffff:127\.)/.test(ra) && ["localhost", "127.0.0.1"].includes(host) && !proxied;
+}
+
+function connectInfo() {
+  const urls = [];
+  for (const u of publicUrls) urls.push({ label: "🔒 https (어디서든 · 마이크 OK · 추천)", url: `${u}/?k=${TOKEN}`, secure: true });
+  for (const ip of lanIps()) urls.push({ label: "🏠 같은 Wi-Fi (http · 아이폰 마이크가 막힐 수 있어요)", url: `http://${ip}:${PORT}/?k=${TOKEN}`, secure: false });
+  return { token: TOKEN, urls, tunnel: USE_TUNNEL };
+}
+
 const server = http.createServer(async (req, res) => {
+  if (req.url === "/api/connect") {
+    if (!isLocalDirect(req)) return json(res, 403, { error: "이 컴퓨터에서만 볼 수 있어요" });
+    return json(res, 200, connectInfo());
+  }
   if (!req.url.startsWith("/api/")) return serveStatic(req, res);
   if (req.headers["x-token"] !== TOKEN) return json(res, 401, { error: "접속 키가 맞지 않아요. 서버 터미널에 표시된 주소로 다시 열어 주세요." });
 
@@ -205,13 +235,37 @@ const server = http.createServer(async (req, res) => {
   json(res, 404, { error: "not found" });
 });
 
+function startTunnel() {
+  const bin = process.env.CLOUDFLARED_BIN || "cloudflared";
+  const child = spawn(bin, ["tunnel", "--no-autoupdate", "--url", `http://localhost:${PORT}`], { stdio: ["ignore", "pipe", "pipe"] });
+  let found = false;
+  const onData = (d) => {
+    const m = String(d).match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/);
+    if (m && !found) {
+      found = true;
+      publicUrls = [m[0], ...publicUrls.filter((u) => u !== m[0])];
+      console.log(`\n  🔒 https 임시 주소 (어디서든 · 마이크 OK): ${m[0]}/?k=${TOKEN}`);
+      console.log(`     ↳ 실행할 때마다 주소가 바뀌어요. 고정 주소가 필요하면 README의 Tailscale 방법을 쓰세요.\n`);
+    }
+  };
+  child.stdout.on("data", onData);
+  child.stderr.on("data", onData);
+  child.on("error", () => {
+    console.log("\n  ⚠️  cloudflared가 없어서 https 임시 주소를 못 만들었어요.");
+    console.log("     Mac: brew install cloudflared  (설치 후 다시 npm run tunnel)\n");
+  });
+  const stop = () => { try { child.kill(); } catch {} process.exit(0); };
+  process.on("SIGINT", stop);
+  process.on("SIGTERM", stop);
+}
+
 server.listen(PORT, "0.0.0.0", () => {
-  const ips = Object.values(os.networkInterfaces())
-    .flat()
-    .filter((i) => i && i.family === "IPv4" && !i.internal)
-    .map((i) => i.address);
   console.log("\n🌺 츄라톡(ちゅらトーク) 서버가 켜졌어요\n");
-  console.log(`  이 컴퓨터:   http://localhost:${PORT}/?k=${TOKEN}`);
-  for (const ip of ips) console.log(`  아이폰(같은 Wi-Fi): http://${ip}:${PORT}/?k=${TOKEN}`);
+  console.log(`  📱 아이폰 연결 QR:  이 컴퓨터 브라우저에서  http://localhost:${PORT}/connect.html  열기`);
+  console.log(`  💻 이 컴퓨터:       http://localhost:${PORT}/?k=${TOKEN}`);
+  for (const u of publicUrls) console.log(`  🔒 https:          ${u}/?k=${TOKEN}`);
+  for (const ip of lanIps()) console.log(`  🏠 같은 Wi-Fi:     http://${ip}:${PORT}/?k=${TOKEN}`);
+  if (!publicUrls.length && !USE_TUNNEL) console.log(`\n  💡 아이폰 마이크는 https 주소에서만 확실히 동작해요 → npm run tunnel 또는 README의 Tailscale 방법`);
   console.log(`\n  모델: ${MODEL} (NIHONGO_MODEL 환경변수로 변경)  |  종료: Ctrl+C\n`);
+  if (USE_TUNNEL) startTunnel();
 });

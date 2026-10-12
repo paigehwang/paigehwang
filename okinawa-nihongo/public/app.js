@@ -138,6 +138,9 @@ function unlockAudio() {
 // ---------- 음성: 인식 (STT) ----------
 const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
 let activeRec = null;
+// 아이폰 사파리는 https(보안 연결)가 아니면 마이크를 막을 수 있어요
+const micWarn = (dark = false) =>
+  window.isSecureContext ? "" : `<div class="card oki" style="margin:10px 0;${dark ? "background:rgba(255,107,94,.18);color:#ffe1dc" : ""}">🔒 지금은 <b>http</b> 주소라 아이폰이 마이크를 막을 수 있어요. 컴퓨터에서 <b>localhost:8787/connect.html</b>을 열고 <b>https</b> QR로 다시 접속해 주세요.</div>`;
 function listen(onInterim) {
   return new Promise((resolve, reject) => {
     if (!Rec) return reject(new Error("이 브라우저는 음성 인식을 지원하지 않아요"));
@@ -223,7 +226,7 @@ async function checkServer() {
   try { await api("/api/health"); el.className = "chip conn on"; return true; }
   catch { el.className = "chip conn off"; return false; }
 }
-const netMsg = (e) => (/fetch|Load failed|NetworkError/i.test(e.message) ? "컴퓨터의 츄라톡 서버에 연결할 수 없어요. 서버가 켜져 있는지 확인하세요." : e.message);
+const netMsg = (e) => (/fetch|Load failed|NetworkError/i.test(e.message) ? "컴퓨터의 츄라톡 서버에 연결할 수 없어요. 회화는 서버가 켜져 있어야 해요 (따라 말하기·복습·표현집은 지금도 OK)." : e.message);
 
 async function chatSend(id, text, hidden = false) {
   const scene = sceneById(id);
@@ -433,7 +436,7 @@ function renderSpeakHub() {
   const weakN = Object.values(S.best).filter((v) => v < 80).length;
   view.innerHTML = `
     <h2>말하기</h2>
-    <p class="muted">듣고 → 따라 말하고 → 바로 점수 확인. 하루 10문장이면 충분해요.</p>
+    <p class="muted">듣고 → 따라 말하고 → 바로 점수 확인. 하루 10문장이면 충분해요.</p>${micWarn()}
     <a class="feature" href="#shadow/${u.id}" style="display:block;margin-top:12px">
       <img class="deco" src="${MASCOT}" alt="" />
       <div style="font-size:13px;font-weight:800;opacity:.9">오늘의 따라 말하기 · ${wk}주차</div>
@@ -488,7 +491,7 @@ function drawShadow() {
       <img src="${MASCOT}" alt="" style="width:150px;margin:0 auto" />
       <h2>${esc(sess.title)}</h2>
       <p class="muted">${n}문장 · 듣기 → 따라 말하기 → 점수<br/>${S.prefs.handsfree ? "🔁 연속 모드: 문장을 들려준 뒤 자동으로 마이크가 켜져요" : "마이크 버튼을 눌러 말하세요"}</p>
-      <label class="toggle" style="justify-content:center"><input type="checkbox" id="hf" ${S.prefs.handsfree ? "checked" : ""}/> 연속 모드 (핸즈프리)</label>
+      ${micWarn()}<label class="toggle" style="justify-content:center"><input type="checkbox" id="hf" ${S.prefs.handsfree ? "checked" : ""}/> 연속 모드 (핸즈프리)</label>
     </div><button class="btn coral" id="sgo">🎙 시작하기</button></div>`;
     $("#sx").onclick = () => { closeShadow(); go("speak"); };
     $("#hf").onchange = (e) => { S.prefs.handsfree = e.target.checked; save(); drawShadow(); };
@@ -635,7 +638,7 @@ function drawVoice() {
     <div class="vtop"><button id="vx" aria-label="닫기">✕</button><div class="t">${vs.scene.em} ${esc(vs.scene.title)}</div><button id="vblur" aria-label="뜻 가리기">${S.prefs.hideKo ? "🙈" : "👀"}</button></div>
     <div class="goal">🎯 ${esc(vs.scene.goal)}</div>
     ${ph === "start" ? `<div class="stage"><div class="orb"><i></i><i></i><i></i></div></div>
-      <div class="start"><p>${chatItems().length ? "이어서 대화해요" : "상대가 먼저 말을 걸어요"} · 말로만 대화해요<br/>막히면 💡 힌트, 한국어로 말해도 OK</p>
+      <div class="start">${micWarn(true)}<p>${chatItems().length ? "이어서 대화해요" : "상대가 먼저 말을 걸어요"} · 말로만 대화해요<br/>막히면 💡 힌트, 한국어로 말해도 OK</p>
       <label class="toggle" style="justify-content:center;color:#cfeeea"><input type="checkbox" id="vhf" ${S.prefs.handsfree ? "checked" : ""}/> 연속 모드 (상대가 말하면 자동으로 마이크 켜기)</label>
       <button class="btn coral" id="vgo" style="margin-top:14px">🎙 대화 시작</button></div>`
     : `<div class="cap ${S.prefs.hideKo ? "blur" : ""}" id="vcap">${ai ? `<div class="who">${esc(who)}</div><div class="ja">${esc(ai.reply.ja)}</div>${S.prefs.hangul ? hangul(ai.reply.yomi) : `<div class="yomi">${esc(ai.reply.yomi)}</div>`}<div class="ko">${esc(ai.reply.ko)}</div>` : ""}</div>
@@ -889,7 +892,7 @@ function renderSettings() {
       <div class="muted">컴퓨터에서 <code>npm start</code> 후 터미널에 뜬 주소(?k=… 포함)로 열면 자동 연결돼요. 홈 화면 앱에서는 접속 키를 한 번 넣어 주세요.</div>
       <input class="field" id="tok" placeholder="접속 키 (8자리)" value="${esc(S.token)}" autocapitalize="off" autocomplete="off" />
       <button class="btn" id="saveTok">저장하고 연결 확인</button>
-    </div>
+    </div>${micWarn()}
     <h3>연습</h3>
     <div class="card stack">
       <label class="toggle"><input type="checkbox" id="pHf" ${S.prefs.handsfree ? "checked" : ""}/> 연속 모드: 상대가 말하면 자동으로 마이크 켜기</label>
@@ -932,4 +935,5 @@ document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("cli
 $("#status").addEventListener("click", () => go("settings"));
 window.addEventListener("hashchange", route);
 route();
+if ("serviceWorker" in navigator && window.isSecureContext) navigator.serviceWorker.register("/sw.js").catch(() => {});
 checkServer().then((ok) => { if (!ok && !S.token) go("settings"); });

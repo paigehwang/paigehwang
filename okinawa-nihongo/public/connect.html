@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>츄라톡 연결</title>
+  <link rel="icon" href="icon-180.png" />
+  <style>
+    :root { --bg: #f4f8f7; --card: #fff; --ink: #12302f; --sub: #5d7473; --line: #e1ebe9; --sea: #10a39b; --sea-soft: #dcf4f1; --coral: #ff6b5e; --coral-soft: #ffe8e4; }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) { --bg: #0d1a1c; --card: #152628; --ink: #e9f4f2; --sub: #8fa9a6; --line: #22393b; --sea: #2cc2b8; --sea-soft: #133a39; --coral-soft: #3b201d; }
+    }
+    :root[data-theme="dark"] { --bg: #0d1a1c; --card: #152628; --ink: #e9f4f2; --sub: #8fa9a6; --line: #22393b; --sea: #2cc2b8; --sea-soft: #133a39; --coral-soft: #3b201d; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", system-ui, sans-serif; }
+    main { max-width: 760px; margin: 0 auto; padding: 32px 16px 48px; }
+    header { display: flex; align-items: center; gap: 14px; }
+    header img { width: 72px; }
+    h1 { margin: 0; font-size: 28px; letter-spacing: -0.03em; color: var(--sea); }
+    h1 small { display: block; font-size: 15px; color: var(--sub); font-weight: 600; letter-spacing: 0; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin-top: 24px; }
+    .card { background: var(--card); border: 1.5px solid var(--line); border-radius: 20px; padding: 18px; }
+    .card.rec { border-color: var(--sea); box-shadow: 0 0 0 3px var(--sea-soft); }
+    .label { font-weight: 800; }
+    .qr { background: #fff; padding: 12px; border-radius: 14px; width: max-content; margin: 14px auto; }
+    .url { font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: var(--sub); word-break: break-all; text-align: center; }
+    .btn { display: inline-block; margin-top: 10px; padding: 8px 12px; border-radius: 10px; background: var(--sea-soft); color: var(--sea); font-weight: 800; border: 0; cursor: pointer; font-size: 14px; }
+    .note { background: var(--coral-soft); border-radius: 16px; padding: 14px 16px; margin-top: 16px; font-size: 15px; }
+    .steps { margin-top: 24px; }
+    .steps ol { padding-left: 20px; }
+    .steps li { margin: 6px 0; }
+    code { background: var(--sea-soft); color: var(--sea); padding: 1px 6px; border-radius: 6px; font-size: 14px; }
+    .wait { color: var(--sub); text-align: center; padding: 40px 0; }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <img src="shisa.svg" alt="" />
+      <h1>츄라톡 아이폰 연결<small>아이폰 카메라로 QR을 비추면 바로 열려요</small></h1>
+    </header>
+    <div id="out" class="wait">불러오는 중…</div>
+    <div class="steps card">
+      <b>📱 아이폰에서</b>
+      <ol>
+        <li>카메라로 QR 비추기 → 사파리에서 열기</li>
+        <li>공유 버튼 → <b>홈 화면에 추가</b></li>
+        <li>홈 화면 앱을 처음 열면 우측 상단 ● → 접속 키 <code id="tok">…</code> 입력 (한 번만)</li>
+        <li>말하기 탭에서 마이크 권한 <b>허용</b></li>
+      </ol>
+    </div>
+  </main>
+  <script src="vendor/qrcode.js"></script>
+  <script>
+    let shown = "";
+    async function load() {
+      let info;
+      try {
+        const r = await fetch("/api/connect", { cache: "no-store" });
+        info = await r.json();
+        if (!r.ok) throw new Error(info.error);
+      } catch (e) {
+        document.getElementById("out").innerHTML = `<div class="note">⚠️ ${e.message || "서버에 연결할 수 없어요"}. 이 페이지는 서버를 켠 컴퓨터에서 <code>http://localhost:8787/connect.html</code> 로 열어 주세요.</div>`;
+        return;
+      }
+      document.getElementById("tok").textContent = info.token;
+      const key = JSON.stringify(info.urls);
+      if (key !== shown) {
+        shown = key;
+        const hasSecure = info.urls.some((u) => u.secure);
+        const out = document.getElementById("out");
+        out.className = "";
+        out.innerHTML = `<div class="grid">${info.urls.map((u, i) => `<div class="card ${u.secure ? "rec" : ""}"><div class="label">${u.label}</div><div class="qr" id="qr${i}"></div><div class="url">${u.url}</div><button class="btn" data-copy="${u.url}">주소 복사</button></div>`).join("")}</div>
+          ${hasSecure ? "" : `<div class="note">🔒 <b>아이폰에서 마이크(따라 말하기·음성 회화)를 쓰려면 https 주소가 필요해요.</b><br/>
+          ${info.tunnel ? "https 임시 주소를 만드는 중이에요… (cloudflared가 설치돼 있어야 해요: <code>brew install cloudflared</code>)" : "터미널에서 <code>npm run tunnel</code> 로 다시 켜거나, README의 Tailscale 방법으로 고정 https 주소를 만드세요."}</div>`}`;
+        info.urls.forEach((u, i) => {
+          const el = document.getElementById("qr" + i);
+          if (window.qrcode) { const q = qrcode(0, "M"); q.addData(u.url); q.make(); el.innerHTML = q.createSvgTag({ cellSize: 5, margin: 2 }); }
+          else el.innerHTML = '<div class="url" style="width:200px">QR 라이브러리를 못 불러왔어요. 아래 주소를 복사해 아이폰으로 보내세요 (에어드롭·메모).</div>';
+        });
+        out.querySelectorAll("[data-copy]").forEach((b) => b.onclick = async () => { try { await navigator.clipboard.writeText(b.dataset.copy); b.textContent = "복사됨 ✓"; } catch { prompt("복사하세요", b.dataset.copy); } });
+      }
+      if (info.tunnel && !info.urls.some((u) => u.secure)) setTimeout(load, 2000);
+    }
+    load();
+  </script>
+</body>
+</html>

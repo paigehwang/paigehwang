@@ -290,8 +290,11 @@ function setupTailscale() {
     return;
   }
   // 이미 그 https 포트를 다른 앱이 쓰고 있으면 덮어쓰지 않아요
+  let funnelOn = USE_FUNNEL;
   try {
     const cur = JSON.parse(run(bin, ["serve", "status", "--json"]) || "{}");
+    // 이미 공개(Funnel)로 켜 둔 포트면 다시 켤 때도 공개를 유지해요
+    if (Object.entries(cur.AllowFunnel || {}).some(([hp, on]) => on && hp.endsWith(`:${TS_HTTPS_PORT}`))) funnelOn = true;
     for (const [hostPort, conf] of Object.entries(cur.Web || {})) {
       if (!hostPort.endsWith(`:${TS_HTTPS_PORT}`)) continue;
       const proxies = Object.values(conf.Handlers || {}).map((h) => String(h.Proxy || h.Path || h.Text || ""));
@@ -303,7 +306,8 @@ function setupTailscale() {
     }
   } catch {}
   try {
-    run(bin, [USE_FUNNEL ? "funnel" : "serve", "--bg", `--https=${TS_HTTPS_PORT}`, String(PORT)]);
+    run(bin, [funnelOn ? "funnel" : "serve", "--bg", `--https=${TS_HTTPS_PORT}`, String(PORT)]);
+    if (funnelOn) console.log(`  🌐 공개(Funnel) 모드: Tailscale 없는 폰에서도 열려요`);
     tsSetup = { error: "" };
   } catch (e) {
     const msg = [e.stdout, e.stderr, e.message].filter(Boolean).join("\n");

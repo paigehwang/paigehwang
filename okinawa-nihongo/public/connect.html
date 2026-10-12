@@ -30,6 +30,10 @@
     .steps ol { padding-left: 20px; }
     .steps li { margin: 6px 0; }
     code { background: var(--sea-soft); color: var(--sea); padding: 1px 6px; border-radius: 6px; font-size: 14px; }
+    .chk { font-size: 13px; font-weight: 700; margin-top: 8px; padding: 6px 10px; border-radius: 10px; background: var(--sea-soft); }
+    .chk.ok { color: #1f8a49; background: #e1f7e8; }
+    .chk.bad { color: #c0392b; background: var(--coral-soft); }
+    .note a { color: inherit; font-weight: 800; }
     .wait { color: var(--sub); text-align: center; padding: 40px 0; }
   </style>
 </head>
@@ -70,7 +74,15 @@
         const hasSecure = info.urls.some((u) => u.secure);
         const out = document.getElementById("out");
         out.className = "";
-        out.innerHTML = `<div class="grid">${info.urls.map((u, i) => `<div class="card ${u.secure ? "rec" : ""}"><div class="label">${u.label}</div><div class="qr" id="qr${i}"></div><div class="url">${u.url}</div><button class="btn" data-copy="${u.url}">주소 복사</button></div>`).join("")}</div>
+        const badge = (u) => !u.secure ? "" : !u.checked ? '<div class="chk">⏳ 이 주소가 열리는지 확인 중…</div>' : u.ok ? '<div class="chk ok">✅ 이 컴퓨터에서 열림 확인. 아이폰은 Tailscale 앱이 <b>연결됨</b> 상태여야 열려요</div>' : `<div class="chk bad">❌ 이 컴퓨터에서도 안 열려요 (${u.error}). QR을 찍어도 '페이지를 열 수 없음'이 떠요. 아래 해결 방법을 확인하세요.</div>`;
+        const broken = info.urls.some((u) => u.secure && u.checked && !u.ok);
+        const fix = !broken && !(info.tsSetup && info.tsSetup.error) ? "" : `<div class="note"><b>🔧 https 주소가 안 열릴 때</b><ol style="margin:8px 0 0;padding-left:20px">
+          ${info.tsSetup && info.tsSetup.link ? `<li><a href="${info.tsSetup.link}" target="_blank">이 링크</a>를 열어 Tailscale Serve/HTTPS를 켜기</li>` : ""}
+          <li><a href="https://login.tailscale.com/admin/dns" target="_blank">Tailscale 관리 페이지 → DNS</a>에서 <b>MagicDNS</b>와 <b>HTTPS Certificates</b>를 <b>Enable</b>로 켜기</li>
+          <li>서버 창을 닫고 다시 <code>npm run ts</code> (또는 start.bat) 실행</li>
+          <li>그래도 안 되면 터미널에 나온 ⚠️ 메시지를 Claude에게 보여주기</li></ol>
+          ${info.tsSetup && info.tsSetup.error ? `<pre style="white-space:pre-wrap;font-size:12px;margin:10px 0 0">${info.tsSetup.error.replace(/</g, "&lt;")}</pre>` : ""}</div>`;
+        out.innerHTML = fix + `<div class="grid">${info.urls.map((u, i) => `<div class="card ${u.secure ? "rec" : ""}"><div class="label">${u.label}</div>${badge(u)}<div class="qr" id="qr${i}"></div><div class="url">${u.url}</div><button class="btn" data-copy="${u.url}">주소 복사</button></div>`).join("")}</div>
           ${hasSecure ? "" : `<div class="note">🔒 <b>아이폰에서 마이크(따라 말하기·음성 회화)를 쓰려면 https 주소가 필요해요.</b><br/>
           ${info.tunnel ? "https 임시 주소를 만드는 중이에요… (cloudflared가 설치돼 있어야 해요: <code>brew install cloudflared</code>)" : "터미널에서 <code>npm run tunnel</code> 로 다시 켜거나, README의 Tailscale 방법으로 고정 https 주소를 만드세요."}</div>`}`;
         info.urls.forEach((u, i) => {
@@ -80,7 +92,7 @@
         });
         out.querySelectorAll("[data-copy]").forEach((b) => b.onclick = async () => { try { await navigator.clipboard.writeText(b.dataset.copy); b.textContent = "복사됨 ✓"; } catch { prompt("복사하세요", b.dataset.copy); } });
       }
-      if (info.tunnel && !info.urls.some((u) => u.secure)) setTimeout(load, 2000);
+      if ((info.tunnel && !info.urls.some((u) => u.secure)) || info.urls.some((u) => u.secure && !u.checked)) setTimeout(load, 2000);
     }
     load();
   </script>

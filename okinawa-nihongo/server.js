@@ -4,6 +4,7 @@
 // 외부 패키지 없이 Node 18+ 만으로 동작합니다.
 
 const http = require("http");
+const https = require("https");
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
@@ -214,11 +215,30 @@ function isLocalDirect(req) {
   return /^(::1|127\.|::ffff:127\.)/.test(ra) && ["localhost", "127.0.0.1"].includes(host) && !proxied;
 }
 
+// https 주소가 실제로 열리는지 이 컴퓨터에서 직접 확인 (QR만 믿고 찍었다가 '페이지를 열 수 없음' 방지)
+const urlStatus = {}; // url -> { ok, error, at }
+let tsSetup = null; // { error, link }
+function checkUrl(u) {
+  const st = urlStatus[u];
+  if (st && (st.checking || Date.now() - st.at < 5000)) return;
+  urlStatus[u] = { ...(st || {}), checking: true, at: Date.now() };
+  const req = https.get(`${u}/manifest.webmanifest`, { timeout: 8000 }, (res) => {
+    res.resume();
+    urlStatus[u] = { ok: res.statusCode === 200, error: res.statusCode === 200 ? "" : `응답 코드 ${res.statusCode}`, at: Date.now() };
+  });
+  req.on("timeout", () => req.destroy(new Error("시간 초과")));
+  req.on("error", (e) => { urlStatus[u] = { ok: false, error: e.code || e.message, at: Date.now() }; });
+}
+
 function connectInfo() {
   const urls = [];
-  for (const u of publicUrls) urls.push({ label: "🔒 https (어디서든 · 마이크 OK · 추천)", url: `${u}/?k=${TOKEN}`, secure: true });
+  for (const u of publicUrls) {
+    checkUrl(u);
+    const st = urlStatus[u] || {};
+    urls.push({ label: "🔒 https (어디서든 · 마이크 OK · 추천)", url: `${u}/?k=${TOKEN}`, secure: true, ok: st.ok === true, checked: "ok" in st, error: st.error || "" });
+  }
   for (const ip of lanIps()) urls.push({ label: "🏠 같은 Wi-Fi (http · 아이폰 마이크가 막힐 수 있어요)", url: `http://${ip}:${PORT}/?k=${TOKEN}`, secure: false });
-  return { token: TOKEN, urls, tunnel: USE_TUNNEL };
+  return { token: TOKEN, urls, tunnel: USE_TUNNEL, tailscale: USE_TAILSCALE, tsSetup };
 }
 
 const server = http.createServer(async (req, res) => {
@@ -268,10 +288,14 @@ function setupTailscale() {
   }
   try {
     run(bin, ["serve", "--bg", String(PORT)]);
+    tsSetup = { error: "" };
   } catch (e) {
-    const msg = String(e.stderr || e.message);
-    console.log("  ⚠️  tailscale serve 실패:\n" + msg.split("\n").map((l) => "     " + l).join("\n"));
-    console.log("     ↳ 처음이면 위에 나온 링크로 들어가 HTTPS 인증서 사용을 켠 뒤 다시 실행하세요.");
+    const msg = [e.stdout, e.stderr, e.message].filter(Boolean).join("\n");
+    const link = (msg.match(/https:\/\/login\.tailscale\.com\/\S+/) || [])[0] || "";
+    tsSetup = { error: msg.trim().split("\n").slice(0, 6).join("\n"), link };
+    console.log("  ⚠️  tailscale serve 실패 — 아이폰에서 https 주소가 안 열려요:\n" + msg.split("\n").map((l) => "     " + l).join("\n"));
+    if (link) console.log(`     ↳ 이 링크를 열어 기능을 켠 뒤 다시 실행하세요: ${link}`);
+    else console.log("     ↳ Tailscale 관리 페이지 → DNS 에서 MagicDNS 와 HTTPS Certificates 를 켠 뒤 다시 실행하세요.");
   }
   try {
     const st = JSON.parse(run(bin, ["status", "--json"]));
@@ -315,4 +339,12 @@ server.listen(PORT, "0.0.0.0", () => {
   if (!publicUrls.length && !USE_TUNNEL) console.log(`\n  💡 아이폰 마이크는 https 주소에서만 확실히 동작해요 → npm run tunnel 또는 README의 Tailscale 방법`);
   console.log(`\n  모델: ${MODEL} (NIHONGO_MODEL 환경변수로 변경)  |  종료: Ctrl+C\n`);
   if (USE_TUNNEL) startTunnel();
+  for (const u of publicUrls) checkUrl(u);
+  setTimeout(() => {
+    for (const u of publicUrls) {
+      const st = urlStatus[u] || {};
+      if (st.ok) console.log(`  ✅ ${u} 열림 확인 — 아이폰에서도 Tailscale만 켜져 있으면 열려요`);
+      else if ("ok" in st) console.log(`  ❌ ${u} 가 이 컴퓨터에서도 안 열려요 (${st.error}). connect.html 의 안내를 확인하세요.`);
+    }
+  }, 9000);
 });

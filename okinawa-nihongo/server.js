@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 오키나와 일본어 회화 앱 — 로컬 브리지 서버
+// 츄라톡(ちゅらトーク) — 로컬 브리지 서버
 // 아이폰(PWA) → 이 서버 → `claude -p` (Claude Code, 구독 한도 사용) → 아이폰
 // 외부 패키지 없이 Node 18+ 만으로 동작합니다.
 
@@ -210,7 +210,7 @@ server.listen(PORT, "0.0.0.0", () => {
     .flat()
     .filter((i) => i && i.family === "IPv4" && !i.internal)
     .map((i) => i.address);
-  console.log("\n🌺 오키나와 일본어 회화 서버가 켜졌어요\n");
+  console.log("\n🌺 츄라톡(ちゅらトーク) 서버가 켜졌어요\n");
   console.log(`  이 컴퓨터:   http://localhost:${PORT}/?k=${TOKEN}`);
   for (const ip of ips) console.log(`  아이폰(같은 Wi-Fi): http://${ip}:${PORT}/?k=${TOKEN}`);
   console.log(`\n  모델: ${MODEL} (NIHONGO_MODEL 환경변수로 변경)  |  종료: Ctrl+C\n`);

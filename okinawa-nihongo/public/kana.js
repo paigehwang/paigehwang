@@ -58,5 +58,5 @@ const Kana = (() => {
     ["がぎぐげご", "g"], ["ざじずぜぞ", "z"], ["だぢづでど", "d"], ["ばびぶべぼ", "b"], ["ぱぴぷぺぽ", "p"],
   ];
   const toKata = (s) => s.replace(/[ぁ-ゖ]/g, (c) => String.fromCharCode(c.charCodeAt(0) + 0x60));
-  return { toHangul, rows, toKata };
+  return { toHangul, rows, toKata, toHira };
 })();

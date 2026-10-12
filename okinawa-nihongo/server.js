@@ -274,7 +274,7 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { sessionId, ...parseTutorJson(text) });
     } catch (e) {
       console.error("claude error:", e.message);
-      return json(res, 502, { error: e.message });
+      return json(res, 502, { error: `Claude 실행 오류: ${e.message.slice(0, 200)} — 컴퓨터에서 npm run doctor 로 진단해 보세요.` });
     }
   }
   json(res, 404, { error: "not found" });
@@ -349,6 +349,29 @@ function startTunnel() {
   process.on("SIGTERM", stop);
 }
 
+// 진단: node server.js --doctor  → Claude Code 실행이 되는지 바로 확인
+if (process.argv.includes("--doctor")) {
+  (async () => {
+    console.log("\n🩺 츄라톡 진단\n");
+    console.log(`  OS: ${process.platform}  Node: ${process.version}`);
+    console.log(`  claude 실행: ${CLAUDE.cmd} ${CLAUDE.pre.join(" ")}`);
+    console.log(`  모델: ${MODEL}\n  → Claude에게 짧은 질문을 보내는 중… (10~30초)`);
+    try {
+      const t0 = Date.now();
+      const { text } = await runClaude({ prompt: "[START]", system: systemPrompt(SCENES["u1-greet"]) });
+      const j = parseTutorJson(text);
+      console.log(`\n  ✅ 성공 (${((Date.now() - t0) / 1000).toFixed(1)}초): ${j.reply?.ja || text.slice(0, 80)}`);
+      console.log("  회화 기능은 정상이에요. 폰에서 오류가 나면 접속 키를 확인하세요.\n");
+    } catch (e) {
+      console.log(`\n  ❌ 실패: ${e.message}\n`);
+      console.log("  확인할 것:");
+      console.log("   1) PowerShell에서  claude -p \"안녕\"  이 답하는지 (로그인 필요)");
+      console.log("   2) 위 'claude 실행' 경로가 맞는지. 다르면  $env:CLAUDE_BIN=\"claude.exe 전체경로\"  로 지정");
+      console.log("   3) 이 화면 전체를 Claude에게 보여주기\n");
+    }
+    process.exit(0);
+  })();
+} else {
 if (USE_TAILSCALE) setupTailscale();
 
 server.listen(PORT, "0.0.0.0", () => {
@@ -369,3 +392,4 @@ server.listen(PORT, "0.0.0.0", () => {
     }
   }, 9000);
 });
+}

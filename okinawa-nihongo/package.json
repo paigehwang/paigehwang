@@ -7,7 +7,8 @@
     "start": "node server.js",
     "tunnel": "node server.js --tunnel",
     "ts": "node server.js --tailscale",
-    "funnel": "node server.js --funnel"
+    "funnel": "node server.js --funnel",
+    "doctor": "node server.js --doctor"
   },
   "engines": { "node": ">=18" }
 }

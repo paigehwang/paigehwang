@@ -226,6 +226,7 @@ async function api(path, body) {
 }
 async function checkServer() {
   const el = $("#status");
+  if (!S.token) { el.className = "chip conn"; return false; } // 키 없음: 회화만 못 쓰고 나머지는 OK
   try { await api("/api/health"); el.className = "chip conn on"; return true; }
   catch { el.className = "chip conn off"; return false; }
 }
@@ -680,6 +681,7 @@ function drawVoice() {
 }
 async function aiTurn(text, hidden, silent = false) {
   const id = vs.id;
+  if (!S.token) { vs.err = "회화는 접속 키가 필요해요. 오른쪽 위 ● → 설정에서 키를 넣어 주세요"; vs.phase = "idle"; drawVoice(); return; }
   vs.phase = "thinking"; vs.err = ""; drawVoice();
   try {
     const it = await chatSend(id, text, hidden);
@@ -754,7 +756,13 @@ function renderChat(id) {
   };
   const send = async (text, hidden = false) => {
     if (busy || !text.trim()) return;
-    if (!S.token) return go("settings");
+    if (!S.token) {
+      const er = document.createElement("div");
+      er.className = "err";
+      er.innerHTML = "🔑 회화는 <b>접속 키</b>가 있어야 해요. 오른쪽 위 ● 를 눌러 키를 넣어 주세요. (따라 말하기·복습·표현집은 키 없이 OK)";
+      msgs.append(er); msgs.scrollTop = msgs.scrollHeight;
+      return;
+    }
     busy = true;
     draw(hidden ? "" : text);
     const typing = document.createElement("div");
@@ -950,4 +958,4 @@ $("#status").addEventListener("click", () => go("settings"));
 window.addEventListener("hashchange", route);
 route();
 if ("serviceWorker" in navigator && window.isSecureContext) navigator.serviceWorker.register("/sw.js").catch(() => {});
-checkServer().then((ok) => { if (!ok && !S.token) go("settings"); });
+checkServer();

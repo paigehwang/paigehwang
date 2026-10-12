@@ -42,7 +42,10 @@ const PUBLIC = path.join(ROOT, "public");
 const WORKDIR = path.join(ROOT, ".claude-work"); // CLAUDE.md 등이 섞이지 않도록 빈 폴더에서 실행
 const TOKEN_FILE = path.join(ROOT, ".token");
 const USE_TUNNEL = process.argv.includes("--tunnel") || process.env.NIHONGO_TUNNEL === "1";
-const USE_TAILSCALE = process.argv.includes("--tailscale") || process.env.NIHONGO_TAILSCALE === "1";
+const USE_FUNNEL = process.argv.includes("--funnel");
+const USE_TAILSCALE = USE_FUNNEL || process.argv.includes("--tailscale") || process.env.NIHONGO_TAILSCALE === "1";
+// 기본 443은 다른 앱이 쓰고 있을 수 있어서 8443에 따로 열어요 (Tailscale https 포트: 443, 8443, 10000)
+const TS_HTTPS_PORT = Number(process.env.NIHONGO_TS_PORT || 8443);
 // 고정 https 주소 (예: tailscale serve 로 만든 https://내맥.tailxxxx.ts.net)
 let publicUrls = (process.env.PUBLIC_URL || "").split(",").map((u) => u.trim().replace(/\/$/, "")).filter(Boolean);
 
@@ -286,8 +289,21 @@ function setupTailscale() {
     console.log("  ⚠️  tailscale 명령을 찾지 못했어요. Tailscale 앱이 설치·로그인돼 있는지 확인하세요.");
     return;
   }
+  // 이미 그 https 포트를 다른 앱이 쓰고 있으면 덮어쓰지 않아요
   try {
-    run(bin, ["serve", "--bg", String(PORT)]);
+    const cur = JSON.parse(run(bin, ["serve", "status", "--json"]) || "{}");
+    for (const [hostPort, conf] of Object.entries(cur.Web || {})) {
+      if (!hostPort.endsWith(`:${TS_HTTPS_PORT}`)) continue;
+      const proxies = Object.values(conf.Handlers || {}).map((h) => String(h.Proxy || h.Path || h.Text || ""));
+      if (!proxies.some((x) => new RegExp(`:${PORT}(/|$)`).test(x))) {
+        tsSetup = { error: `https ${TS_HTTPS_PORT}번 포트를 이미 다른 앱(${proxies.join(", ")})이 쓰고 있어서 건드리지 않았어요. NIHONGO_TS_PORT=10000 으로 다른 포트를 지정해 주세요.`, link: "" };
+        console.log("  ⚠️  " + tsSetup.error);
+        return;
+      }
+    }
+  } catch {}
+  try {
+    run(bin, [USE_FUNNEL ? "funnel" : "serve", "--bg", `--https=${TS_HTTPS_PORT}`, String(PORT)]);
     tsSetup = { error: "" };
   } catch (e) {
     const msg = [e.stdout, e.stderr, e.message].filter(Boolean).join("\n");
@@ -300,7 +316,8 @@ function setupTailscale() {
   try {
     const st = JSON.parse(run(bin, ["status", "--json"]));
     const dns = String(st.Self?.DNSName || "").replace(/\.$/, "");
-    if (dns) publicUrls = [`https://${dns}`, ...publicUrls.filter((u) => u !== `https://${dns}`)];
+    const u = `https://${dns}${TS_HTTPS_PORT === 443 ? "" : ":" + TS_HTTPS_PORT}`;
+    if (dns) publicUrls = [u, ...publicUrls.filter((x) => x !== u)];
   } catch {}
 }
 

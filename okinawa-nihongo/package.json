@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "tunnel": "node server.js --tunnel",
-    "ts": "node server.js --tailscale"
+    "ts": "node server.js --tailscale",
+    "funnel": "node server.js --funnel"
   },
   "engines": { "node": ">=18" }
 }

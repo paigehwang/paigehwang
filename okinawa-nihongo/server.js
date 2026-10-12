@@ -14,6 +14,27 @@ const CURRICULUM = require("./public/curriculum.js");
 const PORT = Number(process.env.PORT || 8787);
 const MODEL = process.env.NIHONGO_MODEL || "sonnet";
 const CLAUDE_BIN = process.env.CLAUDE_BIN || "claude";
+const IS_WIN = process.platform === "win32";
+
+// claude 실행 방법 찾기. Windows에서 npm으로 깐 claude.cmd는 Node가 바로 실행할 수 없어서
+// 같은 폴더의 cli.js를 node로 직접 실행해요.
+function resolveClaude() {
+  if (!IS_WIN || process.env.CLAUDE_BIN) return { cmd: CLAUDE_BIN, pre: [] };
+  let found = [];
+  try { found = execFileSync("where", ["claude"], { encoding: "utf8" }).split(/\r?\n/).map((l) => l.trim()).filter(Boolean); } catch {}
+  const exe = found.find((f) => /\.exe$/i.test(f));
+  if (exe) return { cmd: exe, pre: [] };
+  for (const f of found) {
+    const cli = path.join(path.dirname(f), "node_modules", "@anthropic-ai", "claude-code", "cli.js");
+    if (fs.existsSync(cli)) return { cmd: process.execPath, pre: [cli] };
+  }
+  const home = process.env.USERPROFILE || "";
+  for (const c of [path.join(home, ".local", "bin", "claude.exe"), path.join(process.env.APPDATA || "", "npm", "node_modules", "@anthropic-ai", "claude-code", "cli.js")]) {
+    if (fs.existsSync(c)) return c.endsWith(".js") ? { cmd: process.execPath, pre: [c] } : { cmd: c, pre: [] };
+  }
+  return { cmd: "claude", pre: [] };
+}
+const CLAUDE = resolveClaude();
 const TIMEOUT_MS = 120_000;
 const ROOT = __dirname;
 const PUBLIC = path.join(ROOT, "public");
@@ -96,7 +117,7 @@ function runClaude({ prompt, system, sessionId }) {
     const env = { ...process.env };
     delete env.CLAUDECODE;
     delete env.CLAUDE_CODE_SESSION_ID;
-    const child = spawn(CLAUDE_BIN, args, { cwd: WORKDIR, env });
+    const child = spawn(CLAUDE.cmd, [...CLAUDE.pre, ...args], { cwd: WORKDIR, env, windowsHide: true });
     let out = "";
     let err = "";
     const timer = setTimeout(() => {
@@ -238,7 +259,7 @@ const server = http.createServer(async (req, res) => {
 
 // Tailscale: `tailscale serve`로 https를 켜고 내 기기 고정 주소(https://내맥.xxx.ts.net)를 찾아요
 function setupTailscale() {
-  const bins = [process.env.TAILSCALE_BIN, "tailscale", "/Applications/Tailscale.app/Contents/MacOS/Tailscale"].filter(Boolean);
+  const bins = [process.env.TAILSCALE_BIN, "tailscale", "/Applications/Tailscale.app/Contents/MacOS/Tailscale", "C:\\Program Files\\Tailscale\\tailscale.exe"].filter(Boolean);
   const run = (bin, args) => execFileSync(bin, args, { encoding: "utf8", timeout: 15000, stdio: ["ignore", "pipe", "pipe"] });
   const bin = bins.find((b) => { try { run(b, ["version"]); return true; } catch { return false; } });
   if (!bin) {

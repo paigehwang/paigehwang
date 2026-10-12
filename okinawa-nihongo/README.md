@@ -29,6 +29,26 @@ npm run ts        # Mac은 start.command 더블클릭도 같아요
 
 > 아이폰 사파리는 `http://192.168…` 같은 주소에서 마이크를 막을 수 있어요. 그래서 https 주소가 필요해요. Tailscale이 없으면 `npm run tunnel`(Cloudflare 임시 주소)로도 돼요.
 
+## 🪟 Windows에서 켜기
+
+1. 필요한 것 (처음 한 번만)
+   - **Git**: https://git-scm.com/download/win
+   - **Node.js LTS**: https://nodejs.org
+   - **Claude Code**: 설치돼 있고, 터미널에서 `claude`로 로그인돼 있어야 해요. 확인하려면 `claude -p "안녕"`을 실행해서 답이 오는지 보세요.
+   - **Tailscale**: 컴퓨터와 아이폰에 같은 계정으로 로그인
+2. **PowerShell**을 열고 (시작 메뉴 → "PowerShell")
+   ```powershell
+   git clone -b okinawa-nihongo https://github.com/paigehwang/paigehwang.git
+   cd paigehwang\okinawa-nihongo
+   npm run ts
+   ```
+   다음부터는 탐색기에서 `okinawa-nihongo` 폴더의 **`start.bat`**을 더블클릭하면 돼요. 서버가 켜지고 QR 페이지가 자동으로 열려요.
+3. 브라우저에서 `http://localhost:8787/connect.html`을 열고 🔒 https QR을 아이폰으로 찍어요.
+
+- Windows 방화벽 창이 뜨면 **허용**을 누르세요.
+- 서버가 켜져 있는 동안 PowerShell 창을 닫지 마세요. 컴퓨터가 절전 모드로 들어가도 연결이 끊겨요.
+- `npm run ts`를 실행했을 때 `npm.ps1을 로드할 수 없습니다`라는 오류가 나면 `npm.cmd run ts`로 실행하세요.
+
 ## 무엇을 참고했나
 
 | 참고 앱 | 가져온 것 |

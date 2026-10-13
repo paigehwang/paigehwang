@@ -426,3 +426,4 @@ a.card:active, button.card:active { transform: scale(.985); }
 .mission.dark .mp .ko { color: #cfeeea; }
 .mission.done { text-align: center; }
 .done-row { display: flex; gap: 8px; justify-content: center; margin-top: 12px; }
+.trip-day { display: inline-block; margin-top: 6px; padding: 3px 10px; border-radius: 999px; background: rgba(255,255,255,.22); font-size: 12px; font-weight: 700; }

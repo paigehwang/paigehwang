@@ -5,11 +5,11 @@ const view = $("#view");
 const overlay = $("#overlay");
 const DAY = 86400000;
 const DAILY_GOAL = 50;
-const EMOJI = { u1: "👋", u2: "🙋", u3: "✈️", u4: "🚕", u5: "🏨", u6: "🍜", u7: "🛍️", u8: "🗺️", u9: "🐋", u10: "🌺", u11: "🚑", u12: "🏆" };
+const EMOJI = { u1: "👋", u2: "🙋", u3: "✈️", u4: "🚐", u5: "🏨", u6: "🍜", u7: "🛍️", u8: "🐋", u9: "🛫", u10: "🌺", u11: "🚑", u12: "🏆" };
 const STEPS = [
-  { n: 1, title: "도착하기", sub: "인사 · 숫자 · 공항 · 교통", units: ["u1", "u2", "u3", "u4"] },
-  { n: 2, title: "먹고 자고 사기", sub: "호텔 · 식당 · 쇼핑 · 관광", units: ["u5", "u6", "u7", "u8"] },
-  { n: 3, title: "현지인처럼", sub: "예약 · 스몰토크 · 트러블 · 실전", units: ["u9", "u10", "u11", "u12"] },
+  { n: 1, title: "도착하기", sub: "인사 · 숫자 · 미야코 공항 · 렌터카", units: ["u1", "u2", "u3", "u4"] },
+  { n: 2, title: "먹고 자고 사기", sub: "리조트 · 가족 외식 · 쇼핑 · 츄라우미", units: ["u5", "u6", "u7", "u8"] },
+  { n: 3, title: "현지인처럼", sub: "국내선 · 가족 수다 · 아기 응급 · 리허설", units: ["u9", "u10", "u11", "u12"] },
 ];
 const MASCOT = "shisa.svg";
 const MIC_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
@@ -379,6 +379,7 @@ function renderUnit(id) {
     <div class="unit-hero">
       <button class="back" onclick="go('home')">‹ 코스</button>
       <div class="k">${u.week}주차 · ${esc(u.ref)}</div>
+      ${u.day ? `<div class="trip-day">📅 ${esc(u.day)}</div>` : ""}
       <h2>${EMOJI[u.id]} ${esc(u.title)} <span class="jp">${esc(u.jp)}</span></h2>
       <ul class="cando">${u.canDo.map((c) => `<li>${esc(c)}</li>`).join("")}</ul>
       <div class="action-row">

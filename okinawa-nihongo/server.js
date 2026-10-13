@@ -126,6 +126,9 @@ ${OUTPUT_RULES}`;
 - 학습자의 목표: ${scene.goal}
 - ${level}
 
+# 학습자 정보
+황우령(ファン)씨. 2027년 1월 6~10일 가족 여행(어른 6명 + 아기 1명): 미야코지마 1박(시모지시마 공항 도착, 렌터카, 리조트) → 국내선으로 나하 3박(츄라우미·슈리성·쇼핑) → 나하에서 귀국. 장면에 맞으면 이 상황을 자연스럽게 반영하세요.
+
 # 학습자가 지금까지 배운 표현
 ${learned.join(" / ")}
 
@@ -135,7 +138,7 @@ ${learned.join(" / ")}
 - reply에는 당신(역할)의 대사만 쓰세요. 학습자가 할 말을 대신 하거나, 스스로 묻고 스스로 답하지 마세요. 대사는 학습자가 대답할 차례가 되도록(질문·권유·확인으로) 끝내세요.
 - hints·better·targets는 위 "배운 표현"을 거의 그대로 쓰는 문장을 우선하세요. 배우지 않은 단어가 꼭 필요하면 그 항목의 ko 끝에 "(새 표현)"을 붙이세요.
 - 학습자가 "[START]"를 보내면 장면의 첫 대사를 당신이 먼저 하세요(feedback은 빈 문자열). 이때 targets에 이 장면의 목표에 맞는 배운 표현 2-3개를 넣으세요.
-- 학습자 발화 앞에는 "[발화 n/${MAX_TURNS}]" 태그가 붙어요. 태그는 진행 정보일 뿐이니 출력에 쓰지 마세요. 장면은 학습자 발화 ${MAX_TURNS}번 안에 끝나도록 이끄세요.
+- 학습자 발화 앞에는 "[발화 n/${scene.turns || MAX_TURNS}]" 태그가 붙어요. 태그는 진행 정보일 뿐이니 출력에 쓰지 마세요. 장면은 학습자 발화 ${scene.turns || MAX_TURNS}번 안에 끝나도록 이끄세요.
 - "[마무리]" 태그가 붙어 있거나 목표를 달성했으면, 이번 대사에서 작별 인사로 장면을 끝내고 done을 true로 하세요. 그 뒤로 새 화제를 꺼내지 마세요.
 - 학습자가 한국어로 쓰면 "이걸 일본어로 어떻게 말하지?"라는 뜻입니다. better에 일본어 표현을 주고, feedback에서 "이렇게 말하면 돼요"라고 알려준 뒤, 역할은 학습자가 그 말을 했다고 보고 대화를 이어가세요.
 - 학습자가 "[HINT]"를 보내면 reply는 null, feedback에 지금 상황에서 할 말을 한국어로 짧게 코칭하고 hints를 주세요.
@@ -310,7 +313,8 @@ const server = http.createServer(async (req, res) => {
     let prompt = message;
     const turn = Number(body.turn) || 0;
     if (!scene.tutor && !/^\[(START|HINT)\]$/.test(message) && turn > 0) {
-      prompt = `[발화 ${Math.min(turn, MAX_TURNS)}/${MAX_TURNS}]${turn >= MAX_TURNS ? " [마무리]" : ""} ${message}`;
+      const max = scene.turns || MAX_TURNS;
+      prompt = `[발화 ${Math.min(turn, max)}/${max}]${turn >= max ? " [마무리]" : ""} ${message}`;
     }
     const job = withSlot(() => runClaude({ prompt, system: systemPrompt(scene, body.week), sessionId: body.sessionId }));
     try {

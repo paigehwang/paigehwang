@@ -843,17 +843,19 @@ function deck() {
   return list;
 }
 let flip = false;
+let reviewCard = null; // 정답을 누르기 전까지 같은 카드를 유지 (중간에 다른 카드가 끼어들면 질문과 정답이 어긋나요)
 function renderReview() {
   const all = deck();
   const now = Date.now();
   const due = all.filter((p) => (S.srs[p[0]]?.due || 0) <= now);
-  if (!due.length) {
+  if (!flip || !reviewCard || !all.some((x) => x[0] === reviewCard[0])) { flip = false; reviewCard = due[0] || null; }
+  if (!reviewCard) {
     view.innerHTML = `<h2>복습</h2><div class="card flash"><img src="${MASCOT}" alt="" style="width:120px" /><div class="q">오늘 복습 끝!</div><div class="muted">전체 ${all.length}문장 · 내일 다시 만나요</div><a class="btn" href="#speak" style="margin-top:10px">🎙 따라 말하기 하러 가기</a></div>`;
     return;
   }
-  const p = due[0];
+  const p = reviewCard;
   view.innerHTML = `
-    <h2>복습 <span class="muted">${due.length}장 남음</span></h2>
+    <h2>복습 <span class="muted">${Math.max(due.length, 1)}장 남음</span></h2>
     <p class="muted">한국어를 보고 일본어로 <b>소리 내어</b> 말해 본 뒤 카드를 눌러 확인하세요.</p>
     <div class="card flash" id="card" style="margin-top:12px">
       <div class="q">${esc(p[2])}</div>
@@ -866,7 +868,7 @@ function renderReview() {
     const ok = b.dataset.ans === "1";
     const box = ok ? Math.min(cur.box + 1, BOX_DAYS.length - 1) : 0;
     S.srs[p[0]] = { box, due: ok ? now + BOX_DAYS[box] * DAY - 3600000 : now + 60000 };
-    save(); addXP(2); flip = false; renderReview();
+    save(); addXP(2); flip = false; reviewCard = null; renderReview();
   }));
 }
 

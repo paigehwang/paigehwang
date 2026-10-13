@@ -28,6 +28,19 @@ function resolveClaude() {
   for (const f of found) {
     const cli = path.join(path.dirname(f), "node_modules", "@anthropic-ai", "claude-code", "cli.js");
     if (fs.existsSync(cli)) return { cmd: process.execPath, pre: [cli] };
+    // npm 래퍼(claude.cmd)가 실제로 부르는 파일을 읽어서 찾기 (새 버전은 cli.js 대신 claude.exe를 불러요)
+    if (/\.cmd$/i.test(f)) {
+      let txt = "";
+      try { txt = fs.readFileSync(f, "utf8"); } catch {}
+      for (const m of txt.matchAll(/%~?dp0%?\\([^"%\r\n]+\.(?:exe|js|cjs|mjs))/gi)) {
+        const target = path.join(path.dirname(f), m[1]);
+        if (fs.existsSync(target)) return /\.exe$/i.test(target) ? { cmd: target, pre: [] } : { cmd: process.execPath, pre: [target] };
+      }
+    }
+  }
+  const npmPkg = path.join(process.env.APPDATA || "", "npm", "node_modules", "@anthropic-ai", "claude-code");
+  for (const c of [path.join(npmPkg, "bin", "claude.exe"), path.join(npmPkg, "claude.exe")]) {
+    if (fs.existsSync(c)) return { cmd: c, pre: [] };
   }
   const home = process.env.USERPROFILE || "";
   for (const c of [path.join(home, ".local", "bin", "claude.exe"), path.join(process.env.APPDATA || "", "npm", "node_modules", "@anthropic-ai", "claude-code", "cli.js")]) {

@@ -410,3 +410,19 @@ a.card:active, button.card:active { transform: scale(.985); }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .xp-pop { position: fixed; z-index: 41; font-weight: 900; color: var(--sun-d); font-size: 22px; pointer-events: none; animation: xp 1s ease-out forwards; left: 50%; top: 40%; transform: translateX(-50%); }
 @keyframes xp { to { transform: translate(-50%, -70px); opacity: 0; } }
+
+/* 장면 목표 카드 · 대화 완료 */
+.mission { background: var(--sea-soft); border-radius: 16px; padding: 12px 14px; margin: 4px 0 12px; }
+.mission .mt { font-weight: 800; color: var(--sea-d); }
+.mission .mg { font-size: 14px; margin-top: 4px; }
+.mission .mtl { font-size: 12px; color: var(--sub); margin-top: 10px; font-weight: 700; }
+.mission .mp { display: flex; flex-direction: column; align-items: flex-start; width: 100%; text-align: left; background: #fff; border: 0; border-radius: 12px; padding: 8px 10px; margin-top: 6px; font: inherit; color: inherit; cursor: pointer; }
+.mission .mp .ja { font-weight: 700; font-size: 16px; }
+.mission .mp .ko { font-size: 12px; color: var(--sub); }
+.mission.dark { background: rgba(255,255,255,.1); color: #fff; margin-top: 10px; }
+.mission.dark .mt { color: #cfeeea; }
+.mission.dark .mtl { color: #9fd3cc; }
+.mission.dark .mp { background: rgba(255,255,255,.12); }
+.mission.dark .mp .ko { color: #cfeeea; }
+.mission.done { text-align: center; }
+.done-row { display: flex; gap: 8px; justify-content: center; margin-top: 12px; }

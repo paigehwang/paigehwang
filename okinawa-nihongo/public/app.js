@@ -239,7 +239,8 @@ async function chatSend(id, text, hidden = false) {
   save();
   let r;
   try {
-    r = await api("/api/chat", { sceneId: id, message: text, sessionId: chat.sessionId });
+    const turn = chat.items.filter((x) => x.type === "me").length;
+    r = await api("/api/chat", { sceneId: id, message: text, sessionId: chat.sessionId, turn, week: currentWeek() });
   } catch (e) {
     if (!hidden) chat.items.pop();
     save();
@@ -248,7 +249,9 @@ async function chatSend(id, text, hidden = false) {
   }
   $("#status").className = "chip conn on";
   chat.sessionId = r.sessionId || chat.sessionId;
-  const it = { type: "ai", reply: r.reply, feedback: r.feedback, better: r.better, explain: r.explain, hints: r.hints || [] };
+  const it = { type: "ai", reply: r.reply, feedback: r.feedback, better: r.better, explain: r.explain, hints: r.done ? [] : r.hints || [] };
+  if (r.targets?.length && !chat.targets?.length) chat.targets = r.targets;
+  if (r.done && !scene.tutor) chat.done = true;
   chat.items.push(it);
   save();
   if (!hidden && !scene.tutor) addXP(5);
@@ -602,6 +605,14 @@ function drawSummary(top) {
   $("#sweak") && ($("#sweak").onclick = () => { sess = { ...sess, list: weak, i: 0, phase: "card", results: [], res: null, heard: "" }; unlockAudio(); drawShadow(); enterCard(); });
 }
 
+// 장면 시작 때 보여 주는 목표 카드 ("이 표현을 써 보세요")
+function goalCardHTML(scene, chat, dark = false) {
+  const t = chat?.targets || [];
+  return `<div class="mission ${dark ? "dark" : ""}"><div class="mt">🎯 오늘의 목표</div><div class="mg">${esc(scene.goal)}</div>
+    ${t.length ? `<div class="mtl">이 표현을 써 보세요</div>${t.map((h) => `<button class="mp" data-say="${esc(h.ja)}"><span class="ja">${esc(h.ja)}</span><span class="ko">${esc(h.ko)}</span></button>`).join("")}` : ""}</div>`;
+}
+const turnsUsed = (chat) => (chat?.items || []).filter((x) => x.type === "me").length;
+
 // ---------- 회화 목록 ----------
 function renderTalkList() {
   const wk = currentWeek();
@@ -640,7 +651,7 @@ function drawVoice() {
   const who = vs.scene.role.split(/[。（(、]/)[0];
   overlay.innerHTML = `<div class="voice">
     <div class="vtop"><button id="vx" aria-label="닫기">✕</button><div class="t">${vs.scene.em} ${esc(vs.scene.title)}</div><button id="vblur" aria-label="뜻 가리기">${S.prefs.hideKo ? "🙈" : "👀"}</button></div>
-    <div class="goal">🎯 ${esc(vs.scene.goal)}</div>
+    ${ph === "start" || !S.chats[vs.id]?.items?.some((x) => x.type === "me") ? goalCardHTML(vs.scene, S.chats[vs.id], true) : `<div class="goal">🎯 ${esc(vs.scene.goal)}</div>`}
     ${ph === "start" ? `<div class="stage"><div class="orb"><i></i><i></i><i></i></div></div>
       <div class="start">${micWarn(true)}<p>${chatItems().length ? "이어서 대화해요" : "상대가 먼저 말을 걸어요"} · 말로만 대화해요<br/>막히면 💡 힌트, 한국어로 말해도 OK</p>
       <label class="toggle" style="justify-content:center;color:#cfeeea"><input type="checkbox" id="vhf" ${S.prefs.handsfree ? "checked" : ""}/> 연속 모드 (상대가 말하면 자동으로 마이크 켜기)</label>
@@ -649,11 +660,11 @@ function drawVoice() {
       <div class="stage"><div class="orb ${orbCls}"><i></i><i></i><i></i></div><div class="state">${vs.err ? "⚠️ " + esc(vs.err) : stateText}</div><div class="me-line">${esc(vs.heard)}</div></div>
       ${fb && (fb.feedback || fb.better) ? `<div class="fbk">${fb.feedback ? `${fb.better ? "✏️" : "👍"} ${esc(fb.feedback)}` : ""}${fb.better ? `<div class="row-between" style="margin-top:6px"><div><div class="ja">${esc(fb.better.ja)}</div>${hangul(fb.better.yomi)}</div><button data-say="${esc(fb.better.ja)}">🔊 듣기</button></div>` : ""}</div>` : ""}
       <div class="hints">${(fb?.hints || []).map((h) => `<button class="hint" data-say="${esc(h.ja)}"><div class="ja">${esc(h.ja)}</div><div class="ko">${esc(h.ko)}</div></button>`).join("")}</div>
-      <div class="controls">
+      ${S.chats[vs.id]?.done ? `<div class="mission dark done"><div class="mt">🎉 대화 완료!</div><div class="done-row"><button class="btn ghost" id="vagain">↺ 다시 하기</button><button class="btn" id="vend">완료</button></div></div>` : `<div class="controls">
         <button class="side" id="vhint"><span>💡</span>힌트</button>
         <button class="mic-big ${ph === "listening" ? "rec" : ""}" id="vmic" aria-label="말하기" ${ph === "thinking" ? 'disabled style="opacity:.5"' : ""}>${ph === "listening" ? STOP_SVG : MIC_SVG}</button>
         <button class="side" id="vkey"><span>⌨️</span>채팅</button>
-      </div>`}
+      </div>`}`}
   </div>`;
   $("#vx").onclick = () => { closeVoice(); go("talk"); };
   $("#vblur").onclick = () => { S.prefs.hideKo = !S.prefs.hideKo; save(); drawVoice(); };
@@ -670,6 +681,11 @@ function drawVoice() {
     return;
   }
   $("#vcap")?.addEventListener("click", () => $("#vcap").classList.toggle("blur"));
+  if (S.chats[vs.id]?.done) {
+    $("#vagain").onclick = () => { const id = vs.id; S.chats[id] = { sessionId: null, items: [] }; save(); vs = { id, scene: vs.scene, phase: "start", heard: "", err: "" }; drawVoice(); };
+    $("#vend").onclick = () => { closeVoice(); go("talk"); };
+    return;
+  }
   $("#vmic").onclick = () => {
     if (vs.phase === "listening") return stopListen();
     if (vs.phase === "thinking") return;
@@ -687,6 +703,7 @@ async function aiTurn(text, hidden, silent = false) {
     const it = await chatSend(id, text, hidden);
     if (!vs || vs.id !== id) return;
     if (silent || !it.reply?.ja) { vs.phase = "idle"; drawVoice(); return; }
+    if (S.chats[id]?.done) confetti();
     vs.heard = "";
     vs.phase = "speaking"; drawVoice();
     await speakAsync(it.reply.ja);
@@ -699,6 +716,7 @@ async function aiTurn(text, hidden, silent = false) {
 }
 function afterSpeak() {
   if (!vs) return;
+  if (S.chats[vs.id]?.done) { vs.phase = "idle"; drawVoice(); return; }
   if (S.prefs.handsfree && Rec) userTurn(true);
   else { vs.phase = "idle"; drawVoice(); }
 }
@@ -736,7 +754,7 @@ function renderChat(id) {
         <button class="btn small ghost" id="blurBtn">${S.prefs.hideKo ? "뜻 보기" : "뜻 가리기"}</button>
         <button class="btn small ghost" id="resetBtn" aria-label="처음부터">↺</button>
       </div>
-      <div class="goal-bar">🎯 ${esc(scene.goal)}</div>
+      ${scene.tutor ? "" : `<div class="goal-bar">🎯 ${esc(scene.goal)}</div>`}
       <div class="msgs ${S.prefs.hideKo ? "blur" : ""}" id="msgs"></div>
       <div class="chat-hints" id="hints"></div>
       <div class="composer">
@@ -749,13 +767,15 @@ function renderChat(id) {
   const msgs = $("#msgs");
   const input = $("#input");
   const draw = (pending) => {
-    msgs.innerHTML = chat.items.map(itemHTML).join("") + (pending ? itemHTML({ type: "me", text: pending }) : "");
+    msgs.innerHTML = (scene.tutor ? "" : goalCardHTML(scene, chat)) + chat.items.map(itemHTML).join("") + (pending ? itemHTML({ type: "me", text: pending }) : "")
+      + (chat.done ? `<div class="mission done"><div class="mt">🎉 대화 완료!</div><div class="mg">${turnsUsed(chat)}번 말했어요. 다시 하면 다른 흐름으로 연습할 수 있어요.</div><div class="done-row"><button class="btn ghost" data-again>↺ 다시 하기</button><button class="btn" onclick="go('talk')">다른 장면</button></div></div>` : "");
+    $(".composer").style.display = chat.done ? "none" : "";
     const last = [...chat.items].reverse().find((x) => x.type === "ai");
-    $("#hints").innerHTML = (last?.hints || []).map((h) => `<button class="hint" data-fill="${esc(h.ja)}"><div class="ja">${esc(h.ja)}</div><div class="ko">${esc(h.ko)}</div></button>`).join("");
+    $("#hints").innerHTML = (chat.done ? [] : last?.hints || []).map((h) => `<button class="hint" data-fill="${esc(h.ja)}"><div class="ja">${esc(h.ja)}</div><div class="ko">${esc(h.ko)}</div></button>`).join("");
     msgs.scrollTop = msgs.scrollHeight;
   };
   const send = async (text, hidden = false) => {
-    if (busy || !text.trim()) return;
+    if (busy || !text.trim() || chat.done) return;
     if (!S.token) {
       const er = document.createElement("div");
       er.className = "err";
@@ -774,6 +794,7 @@ function renderChat(id) {
       if (location.hash !== "#talk/" + id) return;
       draw();
       if (S.prefs.autoplay && it.reply?.ja) speak(it.reply.ja);
+      if (chat.done) confetti();
     } catch (e) {
       if (location.hash !== "#talk/" + id) return;
       draw();
@@ -793,10 +814,9 @@ function renderChat(id) {
   input.addEventListener("input", autosize);
   $("#hintBtn")?.addEventListener("click", () => send("[HINT]", true));
   $("#hints").addEventListener("click", (e) => { const h = e.target.closest("[data-fill]"); if (h) { input.value = h.dataset.fill; autosize(); input.focus(); } });
-  $("#resetBtn").addEventListener("click", () => {
-    if (!confirm("이 장면을 처음부터 다시 할까요?")) return;
-    S.chats[id] = { sessionId: null, items: [] }; save(); renderChat(id);
-  });
+  const restart = () => { S.chats[id] = { sessionId: null, items: [] }; save(); renderChat(id); };
+  $("#resetBtn").addEventListener("click", () => { if (confirm("이 장면을 처음부터 다시 할까요?")) restart(); });
+  msgs.addEventListener("click", (e) => { if (e.target.closest("[data-again]")) restart(); });
   $("#blurBtn").addEventListener("click", () => { S.prefs.hideKo = !S.prefs.hideKo; save(); renderChat(id); });
   msgs.addEventListener("click", (e) => { const b = e.target.closest(".bub.ai"); if (b && !e.target.closest("button")) b.classList.toggle("peek"); });
   if (Rec) {

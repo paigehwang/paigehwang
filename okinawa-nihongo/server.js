@@ -86,14 +86,25 @@ const OUTPUT_RULES = `
   "feedback": "학습자의 직전 발화에 대한 한국어 피드백 (잘했으면 짧게 칭찬, 틀렸으면 무엇이 왜 어색한지 1-2문장). 첫 턴이면 빈 문자열",
   "better": {"ja": "...", "yomi": "...", "ko": "..."} 또는 null,
   "explain": "튜터 모드에서만 쓰는 한국어 설명. 그 외엔 빈 문자열",
-  "hints": [{"ja": "...", "yomi": "...", "ko": "..."}]
+  "hints": [{"ja": "...", "yomi": "...", "ko": "..."}],
+  "targets": [{"ja": "...", "yomi": "...", "ko": "..."}],
+  "done": false
 }
 - yomi: 전부 히라가나(외래어도 히라가나), 단어·조사 사이를 띄어쓰기. 조사 は・へ・を는 반드시 앞뒤를 띄워서 단독으로 쓰세요. 예: "わたし は かんこく から きました"
 - better: 학습자 문장을 더 자연스럽게 고친 버전. 학습자가 한국어로 썼다면 그 말을 일본어로 옮긴 것. 이미 완벽하면 null.
-- hints: 학습자가 다음에 말할 수 있는 일본어 문장 2-3개 (짧고 쉬운 것).
+- hints: 학습자가 다음에 말할 수 있는 일본어 문장 2-3개 (짧고 쉬운 것). 대화가 끝났으면 [].
+- targets: 롤플레이 첫 턴([START])에서만, 이 장면에서 꼭 써볼 표현 2-3개. 그 외엔 [].
+- done: 이번 대사로 장면을 마무리했으면 true, 아니면 false.
 `;
 
-function systemPrompt(scene) {
+const MAX_TURNS = Number(process.env.NIHONGO_TURNS || 6); // 학습자가 이만큼 말하면 장면을 마무리해요
+
+// 학습자가 지금까지 배운 문장 (해당 주차까지)
+function learnedPhrases(week) {
+  return CURRICULUM.units.filter((u) => u.week <= week).flatMap((u) => u.phrases.map((p) => `${p[0]} (${p[2]})`));
+}
+
+function systemPrompt(scene, week = 1) {
   if (scene.tutor) {
     return `당신은 한국인 학습자를 돕는 친절한 일본어 튜터입니다. 학습자는 ${CURRICULUM.trip}에 일본 오키나와로 여행을 가며, 그 전까지 여행 회화를 익히는 중인 초급자입니다.
 학습자가 한국어로 묻는 질문(문법, 표현, 상황별 말하기, 발음, 오키나와 문화 등)에 한국어로 짧고 명확하게 답하세요.
@@ -102,9 +113,11 @@ function systemPrompt(scene) {
 - 학습자가 일본어로 문장을 써서 보내면 feedback/better로 교정해 주세요.
 ${OUTPUT_RULES}`;
   }
+  const upTo = scene.week || Math.max(1, Math.min(CURRICULUM.units.length, Number(week) || 1));
   const level = scene.week
     ? `학습자는 12주 코스 중 ${scene.week}주차("${scene.unit.title}")를 공부하는 초급자입니다. 이 유닛의 핵심 표현: ${scene.unit.phrases.map((p) => p[0]).join(" / ")}`
     : `학습자는 오키나와 여행을 준비하는 일본어 초급자입니다.`;
+  const learned = learnedPhrases(upTo);
   return `당신은 한국인 학습자의 일본어 회화 연습 상대입니다. 롤플레이에서 아래 역할을 연기하세요.
 
 # 장면
@@ -113,10 +126,17 @@ ${OUTPUT_RULES}`;
 - 학습자의 목표: ${scene.goal}
 - ${level}
 
+# 학습자가 지금까지 배운 표현
+${learned.join(" / ")}
+
 # 진행 규칙
 - 역할 그대로, 실제 오키나와 현지에서 들을 법한 자연스러운 일본어로 말하세요. 점원이라면 실제 접객 표현(〜でございます 등)도 가끔 섞되, 한 번에 1-2문장으로 짧게.
 - 학습자 수준에 맞춰 쉬운 어휘를 쓰고, 목표 표현을 써볼 기회가 생기도록 장면을 이끄세요.
-- 학습자가 "[START]"를 보내면 장면의 첫 대사를 당신이 먼저 하세요(feedback은 빈 문자열).
+- reply에는 당신(역할)의 대사만 쓰세요. 학습자가 할 말을 대신 하거나, 스스로 묻고 스스로 답하지 마세요. 대사는 학습자가 대답할 차례가 되도록(질문·권유·확인으로) 끝내세요.
+- hints·better·targets는 위 "배운 표현"을 거의 그대로 쓰는 문장을 우선하세요. 배우지 않은 단어가 꼭 필요하면 그 항목의 ko 끝에 "(새 표현)"을 붙이세요.
+- 학습자가 "[START]"를 보내면 장면의 첫 대사를 당신이 먼저 하세요(feedback은 빈 문자열). 이때 targets에 이 장면의 목표에 맞는 배운 표현 2-3개를 넣으세요.
+- 학습자 발화 앞에는 "[발화 n/${MAX_TURNS}]" 태그가 붙어요. 태그는 진행 정보일 뿐이니 출력에 쓰지 마세요. 장면은 학습자 발화 ${MAX_TURNS}번 안에 끝나도록 이끄세요.
+- "[마무리]" 태그가 붙어 있거나 목표를 달성했으면, 이번 대사에서 작별 인사로 장면을 끝내고 done을 true로 하세요. 그 뒤로 새 화제를 꺼내지 마세요.
 - 학습자가 한국어로 쓰면 "이걸 일본어로 어떻게 말하지?"라는 뜻입니다. better에 일본어 표현을 주고, feedback에서 "이렇게 말하면 돼요"라고 알려준 뒤, 역할은 학습자가 그 말을 했다고 보고 대화를 이어가세요.
 - 학습자가 "[HINT]"를 보내면 reply는 null, feedback에 지금 상황에서 할 말을 한국어로 짧게 코칭하고 hints를 주세요.
 - 목표를 달성하면 장면을 자연스럽게 마무리하고, feedback에 "🎉 목표 달성!"과 잘한 점·더 연습할 점을 한 줄씩 적으세요.
@@ -124,7 +144,15 @@ ${OUTPUT_RULES}`;
 ${OUTPUT_RULES}`;
 }
 
-let queue = Promise.resolve(); // claude 프로세스를 한 번에 하나씩만 실행
+// claude 프로세스는 동시에 MAX_PARALLEL개까지 (가족 둘이 같이 써도 서로 기다리지 않게)
+const MAX_PARALLEL = Math.max(1, Number(process.env.NIHONGO_PARALLEL || 2));
+let running = 0;
+const waiting = [];
+async function withSlot(fn) {
+  if (running >= MAX_PARALLEL) await new Promise((r) => waiting.push(r));
+  running++;
+  try { return await fn(); } finally { running--; waiting.shift()?.(); }
+}
 
 function runClaude({ prompt, system, sessionId }) {
   const args = ["-p", "--output-format", "json", "--model", MODEL, "--tools", "", "--strict-mcp-config", "--system-prompt", system];
@@ -278,8 +306,13 @@ const server = http.createServer(async (req, res) => {
     const message = String(body.message || "").slice(0, 2000);
     if (!scene || !message) return json(res, 400, { error: "sceneId와 message가 필요해요" });
 
-    const job = queue.then(() => runClaude({ prompt: message, system: systemPrompt(scene), sessionId: body.sessionId }));
-    queue = job.catch(() => {});
+    // 롤플레이: 학습자 발화 횟수를 알려 주고, 마지막 발화면 마무리하게 해요
+    let prompt = message;
+    const turn = Number(body.turn) || 0;
+    if (!scene.tutor && !/^\[(START|HINT)\]$/.test(message) && turn > 0) {
+      prompt = `[발화 ${Math.min(turn, MAX_TURNS)}/${MAX_TURNS}]${turn >= MAX_TURNS ? " [마무리]" : ""} ${message}`;
+    }
+    const job = withSlot(() => runClaude({ prompt, system: systemPrompt(scene, body.week), sessionId: body.sessionId }));
     try {
       const t0 = Date.now();
       const { text, sessionId } = await job;

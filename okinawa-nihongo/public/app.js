@@ -141,13 +141,35 @@ function unlockAudio() {
 // ---------- 음성: 인식 (STT) ----------
 const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
 let activeRec = null;
-// 아이폰 사파리는 https(보안 연결)가 아니면 마이크를 막을 수 있어요
+const UA = navigator.userAgent;
+const IS_SAMSUNG = /SamsungBrowser/i.test(UA);
+const IS_ANDROID = /Android/i.test(UA);
+const IS_IOS = /iPhone|iPad|iPod/i.test(UA) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+// 음성 인식을 실제로 쓸 수 있는지. 삼성 인터넷처럼 기능은 있는데 막상 쓰면 실패하는 브라우저가 있어서,
+// 그런 오류가 한 번 나면 기억해 두고 '스스로 체크 · 채팅' 방식으로 바꿔요
+const canRec = () => !!Rec && !S.prefs.noRec;
+// 안드로이드에서 같은 주소를 크롬으로 여는 링크
+const chromeUrl = () => `intent://${location.host}${location.pathname}${S.token ? "?k=" + encodeURIComponent(S.token) : ""}#Intent;scheme=https;package=com.android.chrome;end`;
+const tipCard = (dark, icon, html) =>
+  `<div class="card oki" style="margin:10px 0;${dark ? "background:rgba(229,83,61,.18);color:#ffe4de" : ""}">${ic(icon)}<div>${html}</div></div>`;
+// 마이크 관련 안내: http 경고 + 음성 인식이 안 되는 브라우저 안내
 const micWarn = (dark = false) =>
-  window.isSecureContext ? "" : `<div class="card oki" style="margin:10px 0;${dark ? "background:rgba(229,83,61,.18);color:#ffe4de" : ""}">${ic("lock")}<div>지금은 <b>http</b> 주소라 아이폰이 마이크를 막을 수 있어요. 컴퓨터에서 <b>localhost:8787/connect.html</b>을 열고 <b>https</b> QR로 다시 접속해 주세요.</div></div>`;
+  (window.isSecureContext ? "" : tipCard(dark, "lock", `지금은 <b>http</b> 주소라 휴대폰이 마이크를 막을 수 있어요. 컴퓨터에서 <b>localhost:8787/connect.html</b>을 열고 <b>https</b> QR로 다시 접속해 주세요.`))
+  + (canRec() ? "" : IS_ANDROID
+    ? tipCard(dark, "mic", `${IS_SAMSUNG ? "삼성 인터넷" : "이 브라우저"}에서는 말하기 인식이 안 돼요. 소리 내어 말한 뒤 스스로 체크하거나 채팅으로 연습할 수 있어요. 마이크로 채점받으려면 <a href="${chromeUrl()}" style="text-decoration:underline;font-weight:700">크롬으로 열기</a>`)
+    : tipCard(dark, "mic", `이 브라우저에서는 말하기 인식이 안 돼요. 소리 내어 말한 뒤 스스로 체크하거나 채팅으로 연습할 수 있어요.${IS_IOS ? "" : " 크롬이나 사파리에서 열면 마이크로 채점받을 수 있어요."}`));
+// 일본어 목소리가 기기에 없을 때 안내 (안드로이드 기본 TTS에 일본어가 없으면 한국어 목소리로 읽어 버려요)
+const ttsWarn = () => {
+  if (!hasTTS || jaVoice || !speechSynthesis.getVoices().length) return "";
+  return tipCard(false, "speaker", IS_ANDROID
+    ? `일본어 목소리가 설치돼 있지 않아요. 휴대폰 <b>설정 → 일반 → 텍스트 음성 변환</b>에서 기본 엔진을 <b>Google 음성 서비스</b>로 바꾸고, 톱니바퀴 → <b>음성 데이터 설치 → 일본어</b>를 받아 주세요.`
+    : IS_IOS ? `일본어 목소리가 없어요. <b>설정 → 손쉬운 사용 → 읽기 및 말하기 → 음성 → 일본어</b>에서 목소리를 받아 주세요.` : `일본어 목소리가 없어요. 기기의 음성(TTS) 설정에서 일본어를 추가해 주세요.`);
+};
 function listen(onInterim) {
   return new Promise((resolve, reject) => {
-    if (!Rec) return reject(new Error("이 브라우저는 음성 인식을 지원하지 않아요"));
-    const rec = new Rec();
+    if (!canRec()) return reject(new Error("이 브라우저는 음성 인식을 지원하지 않아요"));
+    let rec;
+    try { rec = new Rec(); } catch { S.prefs.noRec = true; save(); return reject(new Error("이 브라우저에서는 말하기 인식이 안 돼요")); }
     rec.lang = "ja-JP";
     rec.interimResults = true;
     rec.continuous = false;
@@ -159,7 +181,15 @@ function listen(onInterim) {
     rec.onerror = (e) => {
       if (e.error === "no-speech" || e.error === "aborted") return;
       activeRec = null;
-      reject(new Error(e.error === "not-allowed" || e.error === "service-not-allowed" ? "마이크·음성 인식 권한을 허용해 주세요 (설정 → Safari → 마이크)" : "음성 인식 오류: " + e.error));
+      // 브라우저가 음성 인식 서비스를 못 쓰는 경우 → 앞으로는 스스로 체크 · 채팅 방식으로
+      if (e.error === "service-not-allowed" || e.error === "language-not-supported" || (e.error === "network" && IS_SAMSUNG)) {
+        S.prefs.noRec = true; save();
+        return reject(new Error("이 브라우저에서는 말하기 인식이 안 돼요. 스스로 체크 · 채팅으로 바꿀게요"));
+      }
+      if (e.error === "not-allowed") {
+        return reject(new Error(IS_IOS ? "마이크 권한을 허용해 주세요 (설정 → Safari → 마이크)" : "마이크 권한을 허용해 주세요 (주소창 왼쪽 자물쇠 → 권한 → 마이크)"));
+      }
+      reject(new Error("음성 인식 오류: " + e.error));
     };
     rec.onend = () => { activeRec = null; resolve(text.trim()); };
     activeRec = rec;
@@ -444,7 +474,7 @@ function renderSpeakHub() {
   const weakN = Object.values(S.best).filter((v) => v < 80).length;
   view.innerHTML = `
     <h2>말하기</h2>
-    <p class="muted">듣고 → 따라 말하고 → 바로 점수 확인. 하루 10문장이면 충분해요.</p>${micWarn()}
+    <p class="muted">듣고 → 따라 말하고 → 바로 점수 확인. 하루 10문장이면 충분해요.</p>${micWarn()}${ttsWarn()}
     <a class="feature" href="#shadow/${u.id}" style="display:block;margin-top:12px">
       <img class="deco" src="${MASCOT}" alt="" />
       <div>오늘의 따라 말하기 · ${wk}주차</div>
@@ -482,7 +512,7 @@ function closeShadow() {
 }
 function coachLine() {
   if (sess.phase === "listening") return "듣고 있어요… 편하게 말해 보세요";
-  if (!sess.res) return S.prefs.handsfree ? "들려주는 문장을 듣고 바로 따라 말해 보세요!" : "듣고, 마이크를 눌러 따라 말해 보세요!";
+  if (!sess.res) return !canRec() ? "듣고, 소리 내어 따라 말한 뒤 체크해 주세요!" : S.prefs.handsfree ? "들려주는 문장을 듣고 바로 따라 말해 보세요!" : "듣고, 마이크를 눌러 따라 말해 보세요!";
   const s = sess.res.score;
   if (s >= 90) return '<span class="jp">すごい!</span> 현지인 같아요';
   if (s >= 70) return '<span class="jp">いいね!</span> 잘 통하는 발음이에요';
@@ -528,9 +558,9 @@ function drawShadow() {
     ${r ? `<div class="next-row"><button class="btn ghost" id="sre">${ic("undo")}다시</button><button class="btn ${r.score >= 70 ? "ok" : ""}" id="snext">${sess.i + 1 >= n ? "결과 보기" : "다음"}</button></div>`
         : `<div class="mic-zone">
           <div class="bars ${listening ? "" : "idle"}">${"<i></i>".repeat(7)}</div>
-          ${Rec ? `<button class="mic-big ${listening ? "rec" : ""}" id="smic" aria-label="말하기">${listening ? STOP_SVG : MIC_SVG}</button>
+          ${canRec() ? `<button class="mic-big ${listening ? "rec" : ""}" id="smic" aria-label="말하기">${listening ? STOP_SVG : MIC_SVG}</button>
           <div class="mic-hint">${listening ? "말이 끝나면 자동으로 채점돼요" : "눌러서 말하기"}</div>`
-          : `<div class="mic-hint" style="text-align:center">이 브라우저는 음성 인식이 안 돼요. 소리 내어 말한 뒤 스스로 체크하세요</div>
+          : `${IS_ANDROID ? micWarn() : ""}<div class="mic-hint" style="text-align:center">소리 내어 말한 뒤 스스로 체크하세요</div>
              <div class="next-row" style="width:100%"><button class="btn ghost" id="sself0">어려워요</button><button class="btn ok" id="sself1">${ic("check-b")}말했어요</button></div>`}
         </div>`}
   </div>`;
@@ -545,7 +575,7 @@ async function enterCard() {
   if (!sess) return;
   const p = sess.list[sess.i];
   await speakAsync(p[0]);
-  if (sess && sess.phase === "card" && !sess.res && sess.list[sess.i] === p && S.prefs.handsfree && Rec) startShadowListen(true);
+  if (sess && sess.phase === "card" && !sess.res && sess.list[sess.i] === p && S.prefs.handsfree && canRec()) startShadowListen(true);
 }
 async function startShadowListen(auto = false) {
   if (!sess || sess.phase === "listening") return;
@@ -559,11 +589,11 @@ async function startShadowListen(auto = false) {
   try {
     heard = await listen((t) => { if (sess) sess.heard = t; const h = $(".heard"); if (h) h.innerHTML = `<b>${esc(t)}</b>`; });
   } catch (e) {
-    if (!auto) toast(e.message);
+    if (!auto || !canRec()) toast(e.message);
   }
   if (!sess || sess.list[sess.i] !== p) return;
   sess.phase = "card";
-  if (!heard) { sess.heard = ""; drawShadow(); if (!auto) toast("잘 안 들렸어요. 마이크를 눌러 다시 말해 보세요"); return; }
+  if (!heard) { sess.heard = ""; drawShadow(); if (!auto && canRec()) toast("잘 안 들렸어요. 마이크를 눌러 다시 말해 보세요"); return; }
   sess.heard = heard;
   const res = scoreSpeech(p, heard);
   sess.res = res;
@@ -647,7 +677,7 @@ function drawVoice() {
   const ai = lastAi();
   const fb = lastFb();
   const ph = vs.phase;
-  const stateText = { start: "", thinking: "상대가 생각하는 중…", speaking: "상대가 말하는 중", listening: "말하세요 — 듣고 있어요", idle: Rec ? "마이크를 눌러 대답하세요" : "이 브라우저는 음성 인식이 안 돼요 — ⌨️ 채팅을 써 주세요" }[ph];
+  const stateText = { start: "", thinking: "상대가 생각하는 중…", speaking: "상대가 말하는 중", listening: "말하세요 — 듣고 있어요", idle: canRec() ? "마이크를 눌러 대답하세요" : "이 브라우저는 말하기 인식이 안 돼요 — 아래 채팅 버튼으로 이어서 해요" }[ph];
   const orbCls = { thinking: "thinking", speaking: "speaking", listening: "listening" }[ph] || "";
   const who = vs.scene.role.split(/[。（(、]/)[0];
   overlay.innerHTML = `<div class="voice">
@@ -718,12 +748,12 @@ async function aiTurn(text, hidden, silent = false) {
 function afterSpeak() {
   if (!vs) return;
   if (S.chats[vs.id]?.done) { vs.phase = "idle"; drawVoice(); return; }
-  if (S.prefs.handsfree && Rec) userTurn(true);
+  if (S.prefs.handsfree && canRec()) userTurn(true);
   else { vs.phase = "idle"; drawVoice(); }
 }
 async function userTurn(auto = false) {
   if (!vs) return;
-  if (!Rec) { toast("이 브라우저는 음성 인식이 안 돼요. ⌨️ 채팅을 써 주세요"); vs.phase = "idle"; drawVoice(); return; }
+  if (!canRec()) { toast("이 브라우저는 말하기 인식이 안 돼요. 채팅으로 이어서 해요"); const id = vs.id; closeVoice(); go("talk/" + id); return; }
   const id = vs.id;
   vs.phase = "listening"; vs.heard = ""; vs.err = ""; drawVoice();
   let t = "";
@@ -731,7 +761,7 @@ async function userTurn(auto = false) {
     t = await listen((x) => { if (vs) { vs.heard = x; const el = $(".me-line"); if (el) el.textContent = x; } });
   } catch (e) {
     // iOS는 탭 없이 마이크를 켜는 걸 막을 수 있어요. 자동 시작 실패는 조용히 '탭해서 말하기'로
-    if (vs) { vs.err = auto ? "" : e.message; vs.phase = "idle"; drawVoice(); }
+    if (vs) { vs.err = auto && canRec() ? "" : e.message; vs.phase = "idle"; drawVoice(); }
     return;
   }
   if (!vs || vs.id !== id) return;
@@ -761,7 +791,7 @@ function renderChat(id) {
       <div class="composer">
         ${scene.tutor ? "" : `<button class="icon" id="hintBtn" aria-label="힌트">${ic("bulb")}</button>`}
         <textarea id="input" rows="1" placeholder="${scene.tutor ? "한국어로 물어보세요" : "日本語で (한국어 OK)"}"></textarea>
-        ${Rec ? `<button class="icon mic" id="micBtn" aria-label="말하기">${ic("mic")}</button>` : ""}
+        ${canRec() ? `<button class="icon mic" id="micBtn" aria-label="말하기">${ic("mic")}</button>` : ""}
         <button class="icon send" id="sendBtn" aria-label="보내기">${ic("send-b")}</button>
       </div>
     </div>`;
@@ -820,7 +850,7 @@ function renderChat(id) {
   msgs.addEventListener("click", (e) => { if (e.target.closest("[data-again]")) restart(); });
   $("#blurBtn").addEventListener("click", () => { S.prefs.hideKo = !S.prefs.hideKo; save(); renderChat(id); });
   msgs.addEventListener("click", (e) => { const b = e.target.closest(".bub.ai"); if (b && !e.target.closest("button")) b.classList.toggle("peek"); });
-  if (Rec) {
+  if (canRec()) {
     const mic = $("#micBtn");
     mic.addEventListener("click", async () => {
       if (activeRec) return stopListen();
@@ -926,7 +956,13 @@ function renderSettings() {
       <div class="muted">컴퓨터에서 <code>npm start</code> 후 터미널에 뜬 주소(?k=… 포함)로 열면 자동 연결돼요. 홈 화면 앱에서는 접속 키를 한 번 넣어 주세요.</div>
       <input class="field" id="tok" placeholder="접속 키 (8자리)" value="${esc(S.token)}" autocapitalize="off" autocomplete="off" />
       <button class="btn" id="saveTok">저장하고 연결 확인</button>
-    </div>${micWarn()}
+    </div>${micWarn()}${ttsWarn()}
+    ${S.prefs.noRec && Rec ? `<button class="btn ghost" id="retryRec" style="margin-top:10px">${ic("mic")}말하기 인식 다시 시도하기</button>` : ""}
+    <h3>홈 화면에 앱으로 추가</h3>
+    <div class="card muted" style="font-size:13.5px">${IS_IOS ? "사파리 아래쪽 공유 버튼 → <b>홈 화면에 추가</b>"
+      : IS_SAMSUNG ? "아래쪽 <b>≡ 메뉴 → 현재 페이지 추가 → 홈 화면</b> (말하기 채점까지 쓰려면 크롬에서 추가하는 걸 추천해요)"
+      : IS_ANDROID ? "오른쪽 위 <b>⋮ 메뉴 → 앱 설치</b> 또는 <b>홈 화면에 추가</b>"
+      : "브라우저 메뉴에서 <b>앱 설치</b> 또는 <b>홈 화면에 추가</b>"}</div>
     <h3>내 일정</h3>
     <div class="card stack">
       <label class="toggle" style="justify-content:space-between">코스 시작일 <input class="field" style="width:auto;font-size:15px;letter-spacing:0;padding:8px 10px" type="date" id="pStart" value="${startDay()}"/></label>
@@ -946,6 +982,7 @@ function renderSettings() {
   const conn = async () => { $("#conn").textContent = (await checkServer()) ? "연결됨" : "연결 안 됨"; };
   conn();
   $("#saveTok").addEventListener("click", () => { S.token = $("#tok").value.trim(); save(); conn(); });
+  $("#retryRec")?.addEventListener("click", () => { S.prefs.noRec = false; save(); toast("말하기를 다시 시도해 볼게요"); renderSettings(); });
   const setDate = (k, v) => { if (v) { S.prefs[k] = v; save(); toast("일정을 저장했어요"); renderChips(); } };
   $("#pStart").addEventListener("change", (e) => setDate("start", e.target.value));
   $("#pTrip").addEventListener("change", (e) => setDate("trip", e.target.value));

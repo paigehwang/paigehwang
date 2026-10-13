@@ -141,6 +141,20 @@ https 주소로 한 번 열면 앱이 아이폰에 저장돼요. 그래서 **여
 | 11 | 12/22 | 🚑 트러블 · 아기 응급 | 만약을 위해 | 약국에서 아기 약, 렌터카 펑크 전화 |
 | 12 | 12/29 | 🏆 총복습 · 우리 여행 리허설 | D1~D5 | D1~D5 연속 롤플레이, 순발력 퀴즈 |
 
+## 디자인
+
+| 요소 | 사용한 것 | 라이선스 |
+|---|---|---|
+| 한국어 글꼴 | [Pretendard](https://github.com/orioncactus/pretendard) (가변, 다이내믹 서브셋) | SIL OFL 1.1 |
+| 일본어 글꼴 | [Zen Maru Gothic](https://github.com/googlefonts/zen-marugothic) 500·700 (둥근 고딕, 가나가 또렷해서 학습용으로 좋아요) | SIL OFL 1.1 |
+| 아이콘 | [Phosphor Icons](https://github.com/phosphor-icons/core) duotone · bold | MIT |
+
+- 글꼴은 `public/fonts/`에 같이 들어 있어서 인터넷이 없어도(오키나와 현지에서도) 그대로 보여요.
+- 색: 류큐 쪽빛(藍 #2E4C96) · 히비스커스(#E5533D) · 바다(#1E9C8C) · 황금 모래(#E9A23B), 바탕은 와시 종이색(#F6F3EC). 다크 모드 지원.
+- 일본어는 둥근 고딕 + 쪽빛 읽기, 한국어는 Pretendard + 회색 발음으로 구분해요.
+- 카드 아래 띠는 오키나와 전통 직물 **민사(ミンサー) 문양**(다섯 칸·네 칸 = "いつの世までも")이에요.
+- 앱 아이콘 원본: `design/app-icon.html` (브라우저로 열어 1024px로 캡처)
+
 ## 5. 설정
 
 | 환경변수 | 기본값 | 설명 |

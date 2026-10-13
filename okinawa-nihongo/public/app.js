@@ -5,15 +5,15 @@ const view = $("#view");
 const overlay = $("#overlay");
 const DAY = 86400000;
 const DAILY_GOAL = 50;
-const EMOJI = { u1: "👋", u2: "🙋", u3: "✈️", u4: "🚐", u5: "🏨", u6: "🍜", u7: "🛍️", u8: "🐋", u9: "🛫", u10: "🌺", u11: "🚑", u12: "🏆" };
+const EMOJI = Object.fromEntries([...Array(12)].map((_, i) => [`u${i + 1}`, ic(`u${i + 1}`)])); // 유닛 아이콘 (icons.js)
 const STEPS = [
   { n: 1, title: "도착하기", sub: "인사 · 숫자 · 미야코 공항 · 렌터카", units: ["u1", "u2", "u3", "u4"] },
   { n: 2, title: "먹고 자고 사기", sub: "리조트 · 가족 외식 · 쇼핑 · 츄라우미", units: ["u5", "u6", "u7", "u8"] },
   { n: 3, title: "현지인처럼", sub: "국내선 · 가족 수다 · 아기 응급 · 리허설", units: ["u9", "u10", "u11", "u12"] },
 ];
 const MASCOT = "shisa.svg";
-const MIC_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
-const STOP_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="7" width="10" height="10" rx="2"/></svg>';
+const MIC_SVG = ic("mic-b");
+const STOP_SVG = '<svg class="ic" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="3"/></svg>';
 
 // ---------- 저장소 (이 기기에만 저장) ----------
 const KEY = "churatalk-v1";
@@ -45,7 +45,7 @@ const unitById = (id) => C.units.find((u) => u.id === id);
 const sceneById = (id) => {
   for (const u of C.units) for (const s of u.scenes) if (s.id === id) return { ...s, unit: u, em: EMOJI[u.id] };
   const f = C.free.find((s) => s.id === id);
-  return f && { ...f, em: f.tutor ? "🧑‍🏫" : "☕" };
+  return f && { ...f, em: f.tutor ? ic("teacher") : ic("coffee") };
 };
 const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 function toast(msg) {
@@ -77,17 +77,17 @@ function addXP(n) {
   p.textContent = `+${n} XP`;
   document.body.append(p);
   setTimeout(() => p.remove(), 1000);
-  if (before < DAILY_GOAL && before + n >= DAILY_GOAL) { confetti(); toast("🎯 오늘 목표 달성! 대단해요"); }
+  if (before < DAILY_GOAL && before + n >= DAILY_GOAL) { confetti(); toast("오늘 목표 달성! 대단해요"); }
   renderChips();
 }
 function renderChips() {
-  $("#streak").textContent = `🔥 ${streak()}`;
-  $("#xp").textContent = `💎 ${xpTotal()}`;
+  $("#streak").innerHTML = `${ic("fire")}${streak()}`;
+  $("#xp").innerHTML = `${ic("gem")}${xpTotal()}`;
 }
 function confetti() {
   const box = document.createElement("div");
   box.className = "confetti";
-  const colors = ["#10a39b", "#ff6b5e", "#ffc23d", "#3cc46b", "#8b7cf6"];
+  const colors = ["#2e4c96", "#e5533d", "#e9a23b", "#1e9c8c", "#f4a08f"];
   for (let i = 0; i < 60; i++) {
     const c = document.createElement("i");
     c.style.left = Math.random() * 100 + "%";
@@ -143,7 +143,7 @@ const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
 let activeRec = null;
 // 아이폰 사파리는 https(보안 연결)가 아니면 마이크를 막을 수 있어요
 const micWarn = (dark = false) =>
-  window.isSecureContext ? "" : `<div class="card oki" style="margin:10px 0;${dark ? "background:rgba(255,107,94,.18);color:#ffe1dc" : ""}">🔒 지금은 <b>http</b> 주소라 아이폰이 마이크를 막을 수 있어요. 컴퓨터에서 <b>localhost:8787/connect.html</b>을 열고 <b>https</b> QR로 다시 접속해 주세요.</div>`;
+  window.isSecureContext ? "" : `<div class="card oki" style="margin:10px 0;${dark ? "background:rgba(229,83,61,.18);color:#ffe4de" : ""}">${ic("lock")}<div>지금은 <b>http</b> 주소라 아이폰이 마이크를 막을 수 있어요. 컴퓨터에서 <b>localhost:8787/connect.html</b>을 열고 <b>https</b> QR로 다시 접속해 주세요.</div></div>`;
 function listen(onInterim) {
   return new Promise((resolve, reject) => {
     if (!Rec) return reject(new Error("이 브라우저는 음성 인식을 지원하지 않아요"));
@@ -267,12 +267,12 @@ function phraseHTML(p, { core = true } = {}) {
     <div class="body">
       <div class="ja">${esc(ja)}${core && isCore ? '<span class="core">핵심</span>' : ""}</div>
       <div class="yomi">${esc(yomi)}</div>${hangul(yomi)}
-      <div class="ko">${esc(ko)}</div>${note ? `<div class="note">💡 ${esc(note)}</div>` : ""}
-      ${best != null ? `<span class="best">🎙 최고 ${best}점</span>` : ""}
+      <div class="ko">${esc(ko)}</div>${note ? `<div class="note">${ic("bulb")}<span>${esc(note)}</span></div>` : ""}
+      ${best != null ? `<span class="best">${ic("mic")}최고 ${best}점</span>` : ""}
     </div>
     <div class="acts">
-      <button class="icon" data-say="${esc(ja)}" aria-label="듣기">🔊</button>
-      <button class="icon ${on ? "on" : ""}" data-star="${attr([ja, yomi, ko, note || ""])}" aria-label="저장">⭐</button>
+      <button class="icon" data-say="${esc(ja)}" aria-label="듣기">${ic("speaker")}</button>
+      <button class="icon ${on ? "on" : ""}" data-star="${attr([ja, yomi, ko, note || ""])}" aria-label="저장">${ic("bookmark")}</button>
     </div>
   </div>`;
 }
@@ -286,7 +286,7 @@ document.addEventListener("click", (e) => {
     const p = JSON.parse(star.dataset.star);
     const i = S.saved.findIndex((x) => x[0] === p[0]);
     if (i >= 0) { S.saved.splice(i, 1); star.classList.remove("on"); toast("표현집에서 뺐어요"); }
-    else { S.saved.unshift(p); star.classList.add("on"); toast("⭐ 표현집에 저장했어요"); }
+    else { S.saved.unshift(p); star.classList.add("on"); toast("표현집에 저장했어요"); }
     save();
   }
 });
@@ -316,7 +316,7 @@ function renderHome() {
       <div class="sunglow"></div>
       <div class="inner">
         <div style="flex:1">
-          <div class="dd">🌺 오키나와 출국까지</div>
+          <div class="dd">${ic("plane-b")}오키나와 출국까지</div>
           <div class="big">${dd > 0 ? `D-${dd}` : dd === 0 ? "D-DAY" : "めんそーれ!"}</div>
           <div class="sub">${wk}주차 · ${esc(u.title)}</div>
           <div class="bubble"><span class="jp">${hi}</span> ${msg}</div>
@@ -324,14 +324,14 @@ function renderHome() {
         ${mascotImg()}
       </div>
       <div class="cta">
-        <a class="btn white" href="#shadow/${u.id}">🎙 따라 말하기</a>
-        <a class="btn white" href="#voice/${u.scenes[0].id}">💬 음성 회화</a>
+        <a class="btn white" href="#shadow/${u.id}">${ic("mic")}따라 말하기</a>
+        <a class="btn white" href="#voice/${u.scenes[0].id}">${ic("chat")}음성 회화</a>
       </div>
       <svg class="waves" viewBox="0 0 400 64" preserveAspectRatio="none"><path d="M0 30 C60 10 120 50 200 30 S340 10 400 30 V64 H0Z" fill="rgba(255,255,255,.12)"/><path d="M0 44 C80 24 140 64 220 44 S350 30 400 44 V64 H0Z" fill="rgba(255,255,255,.16)"/></svg>
     </div>
 
     <div class="card goal-card" style="margin-top:12px">
-      <div class="ring">${ringSVG(xp / DAILY_GOAL)}<b>${xp >= DAILY_GOAL ? "🎯" : "🔥"}</b></div>
+      <div class="ring">${ringSVG(xp / DAILY_GOAL)}<b>${ic(xp >= DAILY_GOAL ? "checkc" : "fire")}</b></div>
       <div style="flex:1">
         <div class="t">오늘 목표 ${Math.min(xp, DAILY_GOAL)} / ${DAILY_GOAL} XP</div>
         <div class="s">따라 말하기 1문장 +10 · 회화 1턴 +5 · 복습 1장 +2</div>
@@ -347,7 +347,7 @@ function renderHome() {
       const cls = S.done[id] ? "done" : x.week === wk ? "now" : x.week < wk ? "open" : "later";
       html += `<a class="node ${cls}" href="#unit/${id}" style="transform:translateX(${off}px)">
         ${cls === "now" ? '<span class="flag">이번 주!</span>' : ""}
-        <span class="disc">${S.done[id] ? "⭐" : EMOJI[id]}</span>
+        <span class="disc">${S.done[id] ? ic("check-b") : EMOJI[id]}</span>
         <span class="label">${esc(x.title)}<small>${x.week}주차</small></span></a>`;
       if (cls === "now") html += `<img class="side-mascot" src="${MASCOT}" alt="" style="top:${i * 150 + 70}px;${off > 0 ? "left:8%" : "right:8%"}" />`;
     });
@@ -367,9 +367,9 @@ function renderUnit(id) {
   let body = "";
   if (unitTab === "phrases" || unitTab === "hear") {
     body = `<div class="row-between"><label class="toggle"><input type="checkbox" id="hideKo" ${S.prefs.hideKo ? "checked" : ""}/> 뜻 가리기</label>
-      <button class="btn small ghost" id="playAll">▶ 전체 듣기</button></div>
+      <button class="btn small ghost" id="playAll">${ic("play")}전체 듣기</button></div>
       <div class="stack ${S.prefs.hideKo ? "hide-ko" : ""}" style="margin-top:12px">${u[unitTab].map((p) => phraseHTML(p)).join("")}</div>
-      ${unitTab === "hear" ? `<a class="btn ghost" style="margin-top:14px" href="#shadow/hear-${u.id}">👂 들을 말도 따라 말해 보기</a>` : ""}`;
+      ${unitTab === "hear" ? `<a class="btn ghost" style="margin-top:14px" href="#shadow/hear-${u.id}">${ic("ear")}들을 말도 따라 말해 보기</a>` : ""}`;
   } else if (unitTab === "words") {
     body = `<div class="words">${u.words.map((w) => `<button class="card word" data-say="${esc(w[0])}"><div class="ja">${esc(w[0])}</div><div class="yomi">${esc(w[1])}</div><div class="ko">${esc(w[2])}</div></button>`).join("")}</div>`;
   } else {
@@ -377,27 +377,27 @@ function renderUnit(id) {
   }
   view.innerHTML = `
     <div class="unit-hero">
-      <button class="back" onclick="go('home')">‹ 코스</button>
+      <button class="back" onclick="go('home')">${ic("back-b")}코스</button>
       <div class="k">${u.week}주차 · ${esc(u.ref)}</div>
-      ${u.day ? `<div class="trip-day">📅 ${esc(u.day)}</div>` : ""}
+      ${u.day ? `<div class="trip-day">${ic("calendar")}${esc(u.day)}</div>` : ""}
       <h2>${EMOJI[u.id]} ${esc(u.title)} <span class="jp">${esc(u.jp)}</span></h2>
       <ul class="cando">${u.canDo.map((c) => `<li>${esc(c)}</li>`).join("")}</ul>
       <div class="action-row">
-        <a class="btn white" href="#shadow/${u.id}">🎙 따라 말하기</a>
-        <a class="btn coral" href="#voice/${u.scenes[0].id}">💬 롤플레이</a>
+        <a class="btn white" href="#shadow/${u.id}">${ic("mic")}따라 말하기</a>
+        <a class="btn coral" href="#voice/${u.scenes[0].id}">${ic("chat")}롤플레이</a>
       </div>
     </div>
-    <div class="card krtip" style="margin-top:16px"><b>🇰🇷 한국인 꿀팁</b><ul>${(u.kr || []).map((t) => `<li>${esc(t)}</li>`).join("")}</ul></div>
-    <div class="card oki" style="margin-top:10px">🌺 ${esc(u.tip)}</div>
+    <div class="card krtip" style="margin-top:16px"><b>${ic("bulb")}한국인 꿀팁</b><ul>${(u.kr || []).map((t) => `<li>${esc(t)}</li>`).join("")}</ul></div>
+    <div class="card oki" style="margin-top:10px">${ic("flower")}<div>${esc(u.tip)}</div></div>
     <div class="seg">${tabs.map(([k, t]) => `<button data-ut="${k}" class="${k === unitTab ? "on" : ""}">${t}</button>`).join("")}</div>
     ${body}
-    <div style="margin-top:22px"><button class="btn ${S.done[u.id] ? "ghost" : "sun"}" id="doneBtn">${S.done[u.id] ? "완료 취소" : "⭐ 이 유닛 완료!"}</button></div>`;
+    <div style="margin-top:22px"><button class="btn ${S.done[u.id] ? "ghost" : "sun"}" id="doneBtn">${S.done[u.id] ? "완료 취소" : `${ic("checkc")}이 유닛 완료`}</button></div>`;
   view.querySelectorAll("[data-ut]").forEach((b) => b.addEventListener("click", () => { unitTab = b.dataset.ut; renderUnit(id); }));
   $("#hideKo")?.addEventListener("change", (e) => { S.prefs.hideKo = e.target.checked; save(); renderUnit(id); });
   $("#playAll")?.addEventListener("click", () => playList(u[unitTab].map((p) => p[0])));
   $("#doneBtn").addEventListener("click", () => {
     S.done[u.id] = !S.done[u.id]; save();
-    if (S.done[u.id]) { confetti(); toast(`🎉 ${u.week}주차 완료!`); }
+    if (S.done[u.id]) { confetti(); toast(`${u.week}주차 완료!`); }
     renderUnit(id);
   });
 }
@@ -412,9 +412,9 @@ function playList(list) {
 function sceneCard(s) {
   const has = S.chats[s.id]?.items?.length;
   return `<div class="card scene-card">
-    <div class="em">${s.em || "💬"}</div>
+    <div class="em">${s.em || ic("chat")}</div>
     <div class="txt"><div class="nm">${esc(s.title)}${has ? '<span class="tag">진행 중</span>' : ""}</div><div class="sb">${esc(s.goal)}</div></div>
-    <div class="go">${s.tutor ? "" : `<a href="#voice/${s.id}" aria-label="음성으로">🎙</a>`}<a class="alt" href="#talk/${s.id}" aria-label="채팅으로">⌨️</a></div>
+    <div class="go">${s.tutor ? "" : `<a href="#voice/${s.id}" aria-label="음성으로">${ic("mic")}</a>`}<a class="alt" href="#talk/${s.id}" aria-label="채팅으로">${ic("keyboard")}</a></div>
   </div>`;
 }
 
@@ -447,23 +447,23 @@ function renderSpeakHub() {
     <p class="muted">듣고 → 따라 말하고 → 바로 점수 확인. 하루 10문장이면 충분해요.</p>${micWarn()}
     <a class="feature" href="#shadow/${u.id}" style="display:block;margin-top:12px">
       <img class="deco" src="${MASCOT}" alt="" />
-      <div style="font-size:13px;font-weight:800;opacity:.9">오늘의 따라 말하기 · ${wk}주차</div>
+      <div>오늘의 따라 말하기 · ${wk}주차</div>
       <div class="t">${EMOJI[u.id]} ${esc(u.title)}</div>
       <div class="s">${u.phrases.filter(shadowable).length}문장 · 약 5분</div>
-      <span class="btn white" style="width:auto;padding:12px 20px">🎙 시작하기</span>
+      <span class="btn white" style="width:auto;padding:12px 20px">${ic("mic")}시작하기</span>
     </a>
     <a class="card mode" href="#voice/${u.scenes[0].id}" style="margin-top:12px">
-      <div class="em" style="background:linear-gradient(150deg,#3fd6c8,#0b7f79)">🔮</div>
-      <div><div class="nm">음성 롤플레이</div><div class="sb">Claude가 ${esc(u.scenes[0].title)} 상대역. 말로만 대화해요</div></div><div class="chev">›</div>
+      <div class="em" style="background:linear-gradient(150deg,#4a6fc4,#233a73);color:#fff">${ic("waves")}</div>
+      <div><div class="nm">음성 롤플레이</div><div class="sb">Claude가 ${esc(u.scenes[0].title)} 상대역. 말로만 대화해요</div></div><div class="chev">${ic("chev-b")}</div>
     </a>
     <h3>다른 연습</h3>
     <div class="stack">
-      <a class="card mode" href="#shadow/core"><div class="em" style="background:var(--coral-soft)">🧳</div><div><div class="nm">여행 핵심 문장</div><div class="sb">출국 전 꼭 입에 붙일 40문장 중 10개</div></div><div class="chev">›</div></a>
-      <a class="card mode" href="#shadow/weak"><div class="em" style="background:var(--sun-soft)">💪</div><div><div class="nm">약한 문장 다시</div><div class="sb">${weakN ? `80점 미만 ${weakN}문장` : "아직 없어요 — 배운 문장에서 랜덤"}</div></div><div class="chev">›</div></a>
-      <a class="card mode" href="#shadow/saved"><div class="em" style="background:var(--sea-soft)">⭐</div><div><div class="nm">내 표현</div><div class="sb">저장한 ${S.saved.length}문장</div></div><div class="chev">›</div></a>
+      <a class="card mode" href="#shadow/core"><div class="em" style="background:var(--coral-soft);color:var(--coral)">${ic("suitcase")}</div><div><div class="nm">여행 핵심 문장</div><div class="sb">출국 전 꼭 입에 붙일 40문장 중 10개</div></div><div class="chev">${ic("chev-b")}</div></a>
+      <a class="card mode" href="#shadow/weak"><div class="em" style="background:var(--sun-soft);color:var(--sun-d)">${ic("repeat")}</div><div><div class="nm">약한 문장 다시</div><div class="sb">${weakN ? `80점 미만 ${weakN}문장` : "아직 없어요 — 배운 문장에서 랜덤"}</div></div><div class="chev">${ic("chev-b")}</div></a>
+      <a class="card mode" href="#shadow/saved"><div class="em" style="background:var(--sea-soft);color:var(--sea)">${ic("bookmark")}</div><div><div class="nm">내 표현</div><div class="sb">저장한 ${S.saved.length}문장</div></div><div class="chev">${ic("chev-b")}</div></a>
     </div>
     <h3>유닛별</h3>
-    <div class="stack">${C.units.map((x) => { const a = unitAvg(x); return `<a class="card mode" href="#shadow/${x.id}" style="padding:12px 16px"><div class="em" style="width:44px;height:44px;font-size:22px;background:var(--lock)">${EMOJI[x.id]}</div><div><div class="nm" style="font-size:15px">${x.week}주 · ${esc(x.title)}</div><div class="sb">${a == null ? "아직 안 해봤어요" : `평균 ${a}점`}</div></div><div class="chev">›</div></a>`; }).join("")}</div>`;
+    <div class="stack">${C.units.map((x) => { const a = unitAvg(x); return `<a class="card mode" href="#shadow/${x.id}" style="padding:12px 16px"><div class="em" style="width:44px;height:44px;border-radius:13px;background:var(--bg-2);color:var(--sub)">${EMOJI[x.id]}</div><div><div class="nm" style="font-size:15px">${x.week}주 · ${esc(x.title)}</div><div class="sb">${a == null ? "아직 안 해봤어요" : `평균 ${a}점`}</div></div><div class="chev">${ic("chev-b")}</div></a>`; }).join("")}</div>`;
 }
 
 // ---------- 따라 말하기 세션 (Speak 스타일) ----------
@@ -481,26 +481,26 @@ function closeShadow() {
   overlay.innerHTML = "";
 }
 function coachLine() {
-  if (sess.phase === "listening") return "듣고 있어요… 편하게 말해 보세요 👂";
-  if (!sess.res) return S.prefs.handsfree ? "들려주는 문장을 듣고 바로 따라 말해 보세요!" : "🔊 듣고, 마이크를 눌러 따라 말해 보세요!";
+  if (sess.phase === "listening") return "듣고 있어요… 편하게 말해 보세요";
+  if (!sess.res) return S.prefs.handsfree ? "들려주는 문장을 듣고 바로 따라 말해 보세요!" : "듣고, 마이크를 눌러 따라 말해 보세요!";
   const s = sess.res.score;
-  if (s >= 90) return '<span class="jp">すごい!</span> 현지인 같아요 🌺';
+  if (s >= 90) return '<span class="jp">すごい!</span> 현지인 같아요';
   if (s >= 70) return '<span class="jp">いいね!</span> 잘 통하는 발음이에요';
   if (s >= 40) return "거의 다 왔어요! 빨간 부분만 다시 들어봐요";
-  return "🐢 천천히 한 번 더 듣고 따라 해 볼까요?";
+  return "천천히 한 번 더 듣고 따라 해 볼까요?";
 }
 function drawShadow() {
   if (!sess) return;
   const n = sess.list.length;
-  const top = `<div class="session-top"><button class="x" id="sx" aria-label="닫기">✕</button>
+  const top = `<div class="session-top"><button class="x" id="sx" aria-label="닫기">${ic("x-b")}</button>
     <div class="progress"><i style="width:${(Math.min(sess.i, n) / n) * 100}%"></i></div><span class="cnt">${Math.min(sess.i + 1, n)}/${n}</span></div>`;
   if (sess.phase === "intro") {
     overlay.innerHTML = `<div class="session">${top}<div class="session-body" style="text-align:center">
       <img src="${MASCOT}" alt="" style="width:150px;margin:0 auto" />
       <h2>${esc(sess.title)}</h2>
-      <p class="muted">${n}문장 · 듣기 → 따라 말하기 → 점수<br/>${S.prefs.handsfree ? "🔁 연속 모드: 문장을 들려준 뒤 자동으로 마이크가 켜져요" : "마이크 버튼을 눌러 말하세요"}</p>
+      <p class="muted">${n}문장 · 듣기 → 따라 말하기 → 점수<br/>${S.prefs.handsfree ? "연속 모드: 문장을 들려준 뒤 자동으로 마이크가 켜져요" : "마이크 버튼을 눌러 말하세요"}</p>
       ${micWarn()}<label class="toggle" style="justify-content:center"><input type="checkbox" id="hf" ${S.prefs.handsfree ? "checked" : ""}/> 연속 모드 (핸즈프리)</label>
-    </div><button class="btn coral" id="sgo">🎙 시작하기</button></div>`;
+    </div><button class="btn coral" id="sgo">${ic("mic")}시작하기</button></div>`;
     $("#sx").onclick = () => { closeShadow(); go("speak"); };
     $("#hf").onchange = (e) => { S.prefs.handsfree = e.target.checked; save(); drawShadow(); };
     $("#sgo").onclick = () => { unlockAudio(); sess.phase = "card"; drawShadow(); enterCard(); };
@@ -519,19 +519,19 @@ function drawShadow() {
       <div class="card target">
         <div class="ja">${target}</div>
         ${showYomi ? `<div class="yomi">${esc(p[1])}</div>` : ""}${hangul(p[1])}
-        <div class="play"><button data-say="${esc(p[0])}">🔊 듣기</button><button data-say="${esc(p[0])}" data-rate="0.55">🐢 천천히</button>
-        <button data-star="${attr([p[0], p[1], p[2], p[3] || ""])}">⭐</button></div>
+        <div class="play"><button data-say="${esc(p[0])}">${ic("speaker")}듣기</button><button data-say="${esc(p[0])}" data-rate="0.55">${ic("slow")}천천히</button>
+        <button data-star="${attr([p[0], p[1], p[2], p[3] || ""])}" aria-label="저장">${ic("bookmark")}</button></div>
       </div>
       <div class="heard">${listening ? (sess.heard ? `<b>${esc(sess.heard)}</b>` : "…") : r ? `들린 말: <b>${esc(sess.heard || "(없음)")}</b>` : ""}</div>
       ${r ? `<div class="result ${r.score >= 70 ? "good" : r.score >= 40 ? "mid" : "bad"}"><div class="score">${r.score}</div><div class="msg">${r.score >= 90 ? "완벽해요!" : r.score >= 70 ? "좋아요!" : r.score >= 40 ? "조금만 더!" : "다시 해볼까요?"}<small>${r.score >= 70 ? `+10 XP${S.prefs.handsfree ? " · 곧 다음 문장으로" : ""}` : "빨간 글자를 다시 들어보세요"}</small></div></div>` : ""}
     </div>
-    ${r ? `<div class="next-row"><button class="btn ghost" id="sre">🎙 다시</button><button class="btn ${r.score >= 70 ? "ok" : ""}" id="snext">${sess.i + 1 >= n ? "결과 보기" : "다음 →"}</button></div>`
+    ${r ? `<div class="next-row"><button class="btn ghost" id="sre">${ic("undo")}다시</button><button class="btn ${r.score >= 70 ? "ok" : ""}" id="snext">${sess.i + 1 >= n ? "결과 보기" : "다음"}</button></div>`
         : `<div class="mic-zone">
           <div class="bars ${listening ? "" : "idle"}">${"<i></i>".repeat(7)}</div>
           ${Rec ? `<button class="mic-big ${listening ? "rec" : ""}" id="smic" aria-label="말하기">${listening ? STOP_SVG : MIC_SVG}</button>
           <div class="mic-hint">${listening ? "말이 끝나면 자동으로 채점돼요" : "눌러서 말하기"}</div>`
           : `<div class="mic-hint" style="text-align:center">이 브라우저는 음성 인식이 안 돼요. 소리 내어 말한 뒤 스스로 체크하세요</div>
-             <div class="next-row" style="width:100%"><button class="btn ghost" id="sself0">😵 어려워요</button><button class="btn ok" id="sself1">😎 말했어요</button></div>`}
+             <div class="next-row" style="width:100%"><button class="btn ghost" id="sself0">어려워요</button><button class="btn ok" id="sself1">${ic("check-b")}말했어요</button></div>`}
         </div>`}
   </div>`;
   $("#sx").onclick = () => { closeShadow(); go("speak"); };
@@ -600,7 +600,7 @@ function drawSummary(top) {
     <div class="stat-row"><div class="stat s1"><small>획득 XP</small><b>+${xp}</b></div><div class="stat s2"><small>통과</small><b>${good}/${rs.length}</b></div><div class="stat s3"><small>평균</small><b>${avg}</b></div></div>
     <div class="card sum-list">${rs.map((r) => `<div class="it"><span class="jp">${esc(r.p[0])}</span><span class="sc" style="color:${r.score >= 70 ? "var(--ok-d)" : "var(--coral)"}">${r.score}</span></div>`).join("")}</div>
   </div>
-  <div class="next-row">${weak.length ? `<button class="btn ghost" id="sweak">💪 다시 ${weak.length}</button>` : "<span></span>"}<button class="btn" id="sdone">완료</button></div></div>`;
+  <div class="next-row">${weak.length ? `<button class="btn ghost" id="sweak">${ic("repeat")}다시 ${weak.length}</button>` : "<span></span>"}<button class="btn" id="sdone">완료</button></div></div>`;
   $("#sx").onclick = () => { closeShadow(); go("speak"); };
   $("#sdone").onclick = () => { closeShadow(); go("speak"); };
   $("#sweak") && ($("#sweak").onclick = () => { sess = { ...sess, list: weak, i: 0, phase: "card", results: [], res: null, heard: "" }; unlockAudio(); drawShadow(); enterCard(); });
@@ -609,8 +609,8 @@ function drawSummary(top) {
 // 장면 시작 때 보여 주는 목표 카드 ("이 표현을 써 보세요")
 function goalCardHTML(scene, chat, dark = false) {
   const t = chat?.targets || [];
-  return `<div class="mission ${dark ? "dark" : ""}"><div class="mt">🎯 오늘의 목표</div><div class="mg">${esc(scene.goal)}</div>
-    ${t.length ? `<div class="mtl">이 표현을 써 보세요</div>${t.map((h) => `<button class="mp" data-say="${esc(h.ja)}"><span class="ja">${esc(h.ja)}</span><span class="ko">${esc(h.ko)}</span></button>`).join("")}` : ""}</div>`;
+  return `<div class="mission ${dark ? "dark" : ""}"><div class="mt">${ic("target")}오늘의 목표</div><div class="mg">${esc(scene.goal)}</div>
+    ${t.length ? `<div class="mtl">이 표현을 써 보세요</div>${t.map((h) => `<button class="mp" data-say="${esc(h.ja)}"><span><span class="ja">${esc(h.ja)}</span><span class="ko">${esc(h.ko)}</span></span>${ic("speaker")}</button>`).join("")}` : ""}</div>`;
 }
 const turnsUsed = (chat) => (chat?.items || []).filter((x) => x.type === "me").length;
 
@@ -620,11 +620,11 @@ function renderTalkList() {
   const cur = C.units[wk - 1];
   view.innerHTML = `
     <h2>회화</h2>
-    <p class="muted">Claude가 오키나와 현지인 역할을 맡아요. 🎙 음성으로 말하거나 ⌨️ 채팅으로 써도 되고, 막히면 한국어로 말해도 일본어로 바꿔줘요.</p>
+    <p class="muted">Claude가 오키나와 현지인 역할을 맡아요. 음성으로 말하거나 채팅으로 써도 되고, 막히면 한국어로 말해도 일본어로 바꿔줘요.</p>
     <h3>이번 주 · ${wk}주차 ${esc(cur.title)}</h3>
     <div class="stack">${cur.scenes.map((s) => sceneCard({ ...s, em: EMOJI[cur.id] })).join("")}</div>
     <h3>자유 모드</h3>
-    <div class="stack">${C.free.map((s) => sceneCard({ ...s, em: s.tutor ? "🧑‍🏫" : "☕" })).join("")}</div>
+    <div class="stack">${C.free.map((s) => sceneCard({ ...s, em: s.tutor ? ic("teacher") : ic("coffee") })).join("")}</div>
     <h3>전체 장면</h3>
     <div class="stack">${C.units.filter((u) => u !== cur).map((u) => u.scenes.map((s) => sceneCard({ ...s, em: EMOJI[u.id] })).join("")).join("")}</div>`;
 }
@@ -647,24 +647,24 @@ function drawVoice() {
   const ai = lastAi();
   const fb = lastFb();
   const ph = vs.phase;
-  const stateText = { start: "", thinking: "상대가 생각하는 중…", speaking: "상대가 말하는 중 🔊", listening: "말하세요 — 듣고 있어요 👂", idle: Rec ? "마이크를 눌러 대답하세요" : "이 브라우저는 음성 인식이 안 돼요 — ⌨️ 채팅을 써 주세요" }[ph];
+  const stateText = { start: "", thinking: "상대가 생각하는 중…", speaking: "상대가 말하는 중", listening: "말하세요 — 듣고 있어요", idle: Rec ? "마이크를 눌러 대답하세요" : "이 브라우저는 음성 인식이 안 돼요 — ⌨️ 채팅을 써 주세요" }[ph];
   const orbCls = { thinking: "thinking", speaking: "speaking", listening: "listening" }[ph] || "";
   const who = vs.scene.role.split(/[。（(、]/)[0];
   overlay.innerHTML = `<div class="voice">
-    <div class="vtop"><button id="vx" aria-label="닫기">✕</button><div class="t">${vs.scene.em} ${esc(vs.scene.title)}</div><button id="vblur" aria-label="뜻 가리기">${S.prefs.hideKo ? "🙈" : "👀"}</button></div>
-    ${ph === "start" || !S.chats[vs.id]?.items?.some((x) => x.type === "me") ? goalCardHTML(vs.scene, S.chats[vs.id], true) : `<div class="goal">🎯 ${esc(vs.scene.goal)}</div>`}
+    <div class="vtop"><button id="vx" aria-label="닫기">${ic("x-b")}</button><div class="t">${vs.scene.em} ${esc(vs.scene.title)}</div><button id="vblur" aria-label="뜻 가리기">${S.prefs.hideKo ? ic("eyeoff") : ic("eye")}</button></div>
+    ${ph === "start" || !S.chats[vs.id]?.items?.some((x) => x.type === "me") ? goalCardHTML(vs.scene, S.chats[vs.id], true) : `<div class="goal">${ic("target")}${esc(vs.scene.goal)}</div>`}
     ${ph === "start" ? `<div class="stage"><div class="orb"><i></i><i></i><i></i></div></div>
-      <div class="start">${micWarn(true)}<p>${chatItems().length ? "이어서 대화해요" : "상대가 먼저 말을 걸어요"} · 말로만 대화해요<br/>막히면 💡 힌트, 한국어로 말해도 OK</p>
+      <div class="start">${micWarn(true)}<p>${chatItems().length ? "이어서 대화해요" : "상대가 먼저 말을 걸어요"} · 말로만 대화해요<br/>막히면 힌트, 한국어로 말해도 OK</p>
       <label class="toggle" style="justify-content:center;color:#cfeeea"><input type="checkbox" id="vhf" ${S.prefs.handsfree ? "checked" : ""}/> 연속 모드 (상대가 말하면 자동으로 마이크 켜기)</label>
-      <button class="btn coral" id="vgo" style="margin-top:14px">🎙 대화 시작</button></div>`
+      <button class="btn coral" id="vgo" style="margin-top:14px">${ic("mic")}대화 시작</button></div>`
     : `<div class="cap ${S.prefs.hideKo ? "blur" : ""}" id="vcap">${ai ? `<div class="who">${esc(who)}</div><div class="ja">${esc(ai.reply.ja)}</div>${S.prefs.hangul ? hangul(ai.reply.yomi) : `<div class="yomi">${esc(ai.reply.yomi)}</div>`}<div class="ko">${esc(ai.reply.ko)}</div>` : ""}</div>
-      <div class="stage"><div class="orb ${orbCls}"><i></i><i></i><i></i></div><div class="state">${vs.err ? "⚠️ " + esc(vs.err) : stateText}</div><div class="me-line">${esc(vs.heard)}</div></div>
-      ${fb && (fb.feedback || fb.better) ? `<div class="fbk">${fb.feedback ? `${fb.better ? "✏️" : "👍"} ${esc(fb.feedback)}` : ""}${fb.better ? `<div class="row-between" style="margin-top:6px"><div><div class="ja">${esc(fb.better.ja)}</div>${hangul(fb.better.yomi)}</div><button data-say="${esc(fb.better.ja)}">🔊 듣기</button></div>` : ""}</div>` : ""}
+      <div class="stage"><div class="orb ${orbCls}"><i></i><i></i><i></i></div><div class="state">${vs.err ? ic("warn") + " " + esc(vs.err) : stateText}</div><div class="me-line">${esc(vs.heard)}</div></div>
+      ${fb && (fb.feedback || fb.better) ? `<div class="fbk">${fb.feedback ? `${fb.better ? ic("pencil") : ic("thumb")} ${esc(fb.feedback)}` : ""}${fb.better ? `<div class="row-between" style="margin-top:6px"><div><div class="ja">${esc(fb.better.ja)}</div>${hangul(fb.better.yomi)}</div><button data-say="${esc(fb.better.ja)}">${ic("speaker")}듣기</button></div>` : ""}</div>` : ""}
       <div class="hints">${(fb?.hints || []).map((h) => `<button class="hint" data-say="${esc(h.ja)}"><div class="ja">${esc(h.ja)}</div><div class="ko">${esc(h.ko)}</div></button>`).join("")}</div>
-      ${S.chats[vs.id]?.done ? `<div class="mission dark done"><div class="mt">🎉 대화 완료!</div><div class="done-row"><button class="btn ghost" id="vagain">↺ 다시 하기</button><button class="btn" id="vend">완료</button></div></div>` : `<div class="controls">
-        <button class="side" id="vhint"><span>💡</span>힌트</button>
+      ${S.chats[vs.id]?.done ? `<div class="mission dark done"><div class="mt">${ic("confetti")}대화 완료!</div><div class="done-row"><button class="btn ghost" id="vagain">${ic("undo")}다시 하기</button><button class="btn" id="vend">완료</button></div></div>` : `<div class="controls">
+        <button class="side" id="vhint"><span>${ic("bulb")}</span>힌트</button>
         <button class="mic-big ${ph === "listening" ? "rec" : ""}" id="vmic" aria-label="말하기" ${ph === "thinking" ? 'disabled style="opacity:.5"' : ""}>${ph === "listening" ? STOP_SVG : MIC_SVG}</button>
-        <button class="side" id="vkey"><span>⌨️</span>채팅</button>
+        <button class="side" id="vkey"><span>${ic("keyboard")}</span>채팅</button>
       </div>`}`}
   </div>`;
   $("#vx").onclick = () => { closeVoice(); go("talk"); };
@@ -749,27 +749,27 @@ function renderChat(id) {
   view.innerHTML = `
     <div class="chat-wrap">
       <div class="chat-head">
-        <button class="back" onclick="go('talk')">‹</button>
+        <button class="back" onclick="go('talk')" aria-label="뒤로">${ic("back-b")}</button>
         <div class="t">${scene.em} ${esc(scene.title)}</div>
-        ${scene.tutor ? "" : `<a class="btn small coral" href="#voice/${id}" style="box-shadow:0 3px 0 var(--coral-d)">🎙 음성</a>`}
+        ${scene.tutor ? "" : `<a class="btn small coral" href="#voice/${id}" >${ic("mic")}음성</a>`}
         <button class="btn small ghost" id="blurBtn">${S.prefs.hideKo ? "뜻 보기" : "뜻 가리기"}</button>
-        <button class="btn small ghost" id="resetBtn" aria-label="처음부터">↺</button>
+        <button class="btn small ghost" id="resetBtn" aria-label="처음부터">${ic("undo")}</button>
       </div>
-      ${scene.tutor ? "" : `<div class="goal-bar">🎯 ${esc(scene.goal)}</div>`}
+      ${scene.tutor ? "" : `<div class="goal-bar">${ic("target")}${esc(scene.goal)}</div>`}
       <div class="msgs ${S.prefs.hideKo ? "blur" : ""}" id="msgs"></div>
       <div class="chat-hints" id="hints"></div>
       <div class="composer">
-        ${scene.tutor ? "" : '<button class="icon" id="hintBtn" aria-label="힌트">💡</button>'}
+        ${scene.tutor ? "" : `<button class="icon" id="hintBtn" aria-label="힌트">${ic("bulb")}</button>`}
         <textarea id="input" rows="1" placeholder="${scene.tutor ? "한국어로 물어보세요" : "日本語で (한국어 OK)"}"></textarea>
-        ${Rec ? '<button class="icon mic" id="micBtn" aria-label="말하기">🎤</button>' : ""}
-        <button class="icon send" id="sendBtn" aria-label="보내기">↑</button>
+        ${Rec ? `<button class="icon mic" id="micBtn" aria-label="말하기">${ic("mic")}</button>` : ""}
+        <button class="icon send" id="sendBtn" aria-label="보내기">${ic("send-b")}</button>
       </div>
     </div>`;
   const msgs = $("#msgs");
   const input = $("#input");
   const draw = (pending) => {
     msgs.innerHTML = (scene.tutor ? "" : goalCardHTML(scene, chat)) + chat.items.map(itemHTML).join("") + (pending ? itemHTML({ type: "me", text: pending }) : "")
-      + (chat.done ? `<div class="mission done"><div class="mt">🎉 대화 완료!</div><div class="mg">${turnsUsed(chat)}번 말했어요. 다시 하면 다른 흐름으로 연습할 수 있어요.</div><div class="done-row"><button class="btn ghost" data-again>↺ 다시 하기</button><button class="btn" onclick="go('talk')">다른 장면</button></div></div>` : "");
+      + (chat.done ? `<div class="mission done"><div class="mt">${ic("confetti")}대화 완료!</div><div class="mg">${turnsUsed(chat)}번 말했어요. 다시 하면 다른 흐름으로 연습할 수 있어요.</div><div class="done-row"><button class="btn ghost" data-again>${ic("undo")}다시 하기</button><button class="btn" onclick="go('talk')">다른 장면</button></div></div>` : "");
     $(".composer").style.display = chat.done ? "none" : "";
     const last = [...chat.items].reverse().find((x) => x.type === "ai");
     $("#hints").innerHTML = (chat.done ? [] : last?.hints || []).map((h) => `<button class="hint" data-fill="${esc(h.ja)}"><div class="ja">${esc(h.ja)}</div><div class="ko">${esc(h.ko)}</div></button>`).join("");
@@ -780,7 +780,7 @@ function renderChat(id) {
     if (!S.token) {
       const er = document.createElement("div");
       er.className = "err";
-      er.innerHTML = "🔑 회화는 <b>접속 키</b>가 있어야 해요. 오른쪽 위 ● 를 눌러 키를 넣어 주세요. (따라 말하기·복습·표현집은 키 없이 OK)";
+      er.innerHTML = ic("key") + " 회화는 <b>접속 키</b>가 있어야 해요. 오른쪽 위 ● 를 눌러 키를 넣어 주세요. (따라 말하기·복습·표현집은 키 없이 OK)";
       msgs.append(er); msgs.scrollTop = msgs.scrollHeight;
       return;
     }
@@ -802,7 +802,7 @@ function renderChat(id) {
       if (!hidden) input.value = text;
       const er = document.createElement("div");
       er.className = "err";
-      er.textContent = "⚠️ " + e.message;
+      er.textContent = e.message;
       msgs.append(er); msgs.scrollTop = msgs.scrollHeight;
     } finally {
       busy = false;
@@ -840,15 +840,15 @@ function itemHTML(it) {
   let h = "";
   if (it.feedback || it.better) {
     const good = !it.better;
-    h += `<div class="fb ${good ? "good" : ""}">${it.feedback ? `${good ? "👍" : "✏️"} ${esc(it.feedback)}` : ""}
+    h += `<div class="fb ${good ? "good" : ""}">${it.feedback ? `${good ? ic("thumb") : ic("pencil")} ${esc(it.feedback)}` : ""}
       ${it.better ? `<div class="better"><div class="ja">${esc(it.better.ja)}</div><div class="yomi">${esc(it.better.yomi)}</div>${hangul(it.better.yomi)}<div class="muted">${esc(it.better.ko)}</div>
-      <div style="display:flex;gap:6px;margin-top:8px"><button class="btn small ghost" data-say="${esc(it.better.ja)}">🔊 듣기</button>
-      <button class="btn small ghost" data-star="${attr([it.better.ja, it.better.yomi, it.better.ko, ""])}">⭐ 저장</button></div></div>` : ""}</div>`;
+      <div style="display:flex;gap:6px;margin-top:8px"><button class="btn small ghost" data-say="${esc(it.better.ja)}">${ic("speaker")}듣기</button>
+      <button class="btn small ghost" data-star="${attr([it.better.ja, it.better.yomi, it.better.ko, ""])}">${ic("bookmark")}저장</button></div></div>` : ""}</div>`;
   }
   if (it.reply?.ja) {
     h += `<div class="bub ai"><div class="ja">${esc(it.reply.ja)}</div><div class="yomi">${esc(it.reply.yomi)}</div>${hangul(it.reply.yomi)}<div class="ko">${esc(it.reply.ko)}</div>
-      <div class="tools"><button data-say="${esc(it.reply.ja)}">🔊</button><button data-say="${esc(it.reply.ja)}" data-rate="0.55">🐢</button>
-      <button data-star="${attr([it.reply.ja, it.reply.yomi, it.reply.ko, ""])}">⭐</button></div></div>`;
+      <div class="tools"><button data-say="${esc(it.reply.ja)}" aria-label="듣기">${ic("speaker")}</button><button data-say="${esc(it.reply.ja)}" data-rate="0.55" aria-label="천천히">${ic("slow")}</button>
+      <button data-star="${attr([it.reply.ja, it.reply.yomi, it.reply.ko, ""])}" aria-label="저장">${ic("bookmark")}</button></div></div>`;
   }
   if (it.explain) h += `<div class="bub ai"><div class="explain">${esc(it.explain)}</div></div>`;
   return h;
@@ -871,7 +871,7 @@ function renderReview() {
   const due = all.filter((p) => (S.srs[p[0]]?.due || 0) <= now);
   if (!flip || !reviewCard || !all.some((x) => x[0] === reviewCard[0])) { flip = false; reviewCard = due[0] || null; }
   if (!reviewCard) {
-    view.innerHTML = `<h2>복습</h2><div class="card flash"><img src="${MASCOT}" alt="" style="width:120px" /><div class="q">오늘 복습 끝!</div><div class="muted">전체 ${all.length}문장 · 내일 다시 만나요</div><a class="btn" href="#speak" style="margin-top:10px">🎙 따라 말하기 하러 가기</a></div>`;
+    view.innerHTML = `<h2>복습</h2><div class="card flash"><img src="${MASCOT}" alt="" style="width:120px" /><div class="q">오늘 복습 끝!</div><div class="muted">전체 ${all.length}문장 · 내일 다시 만나요</div><a class="btn" href="#speak" style="margin-top:10px">${ic("mic")}따라 말하기 하러 가기</a></div>`;
     return;
   }
   const p = reviewCard;
@@ -880,9 +880,9 @@ function renderReview() {
     <p class="muted">한국어를 보고 일본어로 <b>소리 내어</b> 말해 본 뒤 카드를 눌러 확인하세요.</p>
     <div class="card flash" id="card" style="margin-top:12px">
       <div class="q">${esc(p[2])}</div>
-      ${flip ? `<div class="a">${esc(p[0])}</div><div class="yomi">${esc(p[1])}</div>${hangul(p[1])}<button class="btn small ghost" data-say="${esc(p[0])}" style="margin-top:6px">🔊 다시 듣기</button>` : '<div class="muted" style="margin-top:12px">👆 눌러서 정답 보기</div>'}
+      ${flip ? `<div class="a">${esc(p[0])}</div><div class="yomi">${esc(p[1])}</div>${hangul(p[1])}<button class="btn small ghost" data-say="${esc(p[0])}" style="margin-top:6px">${ic("speaker")}다시 듣기</button>` : `<div class="muted" style="margin-top:12px">${ic("hand")} 눌러서 정답 보기</div>`}
     </div>
-    ${flip ? `<div class="flash-actions"><button class="btn coral" data-ans="0">😵 몰랐어요</button><button class="btn ok" data-ans="1">😎 말했어요</button></div>` : ""}`;
+    ${flip ? `<div class="flash-actions"><button class="btn coral" data-ans="0">${ic("x-b")}몰랐어요</button><button class="btn ok" data-ans="1">${ic("check-b")}말했어요</button></div>` : ""}`;
   $("#card").addEventListener("click", (e) => { if (!flip && !e.target.closest("button")) { flip = true; renderReview(); speak(p[0]); } });
   view.querySelectorAll("[data-ans]").forEach((b) => b.addEventListener("click", () => {
     const cur = S.srs[p[0]] || { box: 0 };
@@ -906,12 +906,12 @@ function renderBook() {
       <div class="kana-grid">${Kana.rows.map(([row]) => [...row].map((c) => (c === "　" ? '<button class="empty"></button>' : `<button data-say="${conv(c)}">${conv(c)}<small>${Kana.toHangul(c, false)}</small></button>`)).join("")).join("")}</div>`;
   } else {
     const list = bookTab === "saved" ? S.saved : core;
-    body = `${bookTab === "core" ? '<div class="card oki">🧳 여행 당일엔 이 화면 하나만 열어도 웬만한 상황은 해결돼요.</div>' : ""}
-      <div class="stack" style="margin-top:10px">${list.length ? list.map((p) => phraseHTML(p, { core: false })).join("") : `<div class="card" style="text-align:center"><img src="${MASCOT}" alt="" style="width:90px" /><p class="muted">코스나 회화에서 ⭐를 누르면 여기에 모여요.</p></div>`}</div>`;
+    body = `${bookTab === "core" ? `<div class="card oki">${ic("suitcase")}<div>여행 당일엔 이 화면 하나만 열어도 웬만한 상황은 해결돼요.</div></div>` : ""}
+      <div class="stack" style="margin-top:10px">${list.length ? list.map((p) => phraseHTML(p, { core: false })).join("") : `<div class="card" style="text-align:center"><img src="${MASCOT}" alt="" style="width:90px" /><p class="muted">코스나 회화에서 저장 버튼을 누르면 여기에 모여요.</p></div>`}</div>`;
   }
   view.innerHTML = `
     <h2>표현집</h2>
-    <div class="seg"><button data-bt="saved" class="${bookTab === "saved" ? "on" : ""}">⭐ 저장 ${S.saved.length}</button><button data-bt="core" class="${bookTab === "core" ? "on" : ""}">🧳 핵심 ${core.length}</button><button data-bt="kana" class="${bookTab === "kana" ? "on" : ""}">あ 문자표</button></div>
+    <div class="seg"><button data-bt="saved" class="${bookTab === "saved" ? "on" : ""}">${ic("bookmark")}저장 ${S.saved.length}</button><button data-bt="core" class="${bookTab === "core" ? "on" : ""}">${ic("suitcase")}핵심 ${core.length}</button><button data-bt="kana" class="${bookTab === "kana" ? "on" : ""}">あ 문자표</button></div>
     ${body}`;
   view.querySelectorAll("[data-bt]").forEach((b) => b.addEventListener("click", () => { bookTab = b.dataset.bt; renderBook(); }));
   view.querySelectorAll("[data-kk]").forEach((b) => b.addEventListener("click", () => { kanaKata = b.dataset.kk === "1"; renderBook(); }));
@@ -929,8 +929,8 @@ function renderSettings() {
     </div>${micWarn()}
     <h3>내 일정</h3>
     <div class="card stack">
-      <label class="toggle" style="justify-content:space-between">📅 코스 시작일 <input class="field" style="width:auto;font-size:15px;letter-spacing:0;padding:8px 10px" type="date" id="pStart" value="${startDay()}"/></label>
-      <label class="toggle" style="justify-content:space-between">✈️ 출국일 <input class="field" style="width:auto;font-size:15px;letter-spacing:0;padding:8px 10px" type="date" id="pTrip" value="${tripDay()}"/></label>
+      <label class="toggle" style="justify-content:space-between">코스 시작일 <input class="field" style="width:auto;font-size:15px;letter-spacing:0;padding:8px 10px" type="date" id="pStart" value="${startDay()}"/></label>
+      <label class="toggle" style="justify-content:space-between">출국일 <input class="field" style="width:auto;font-size:15px;letter-spacing:0;padding:8px 10px" type="date" id="pTrip" value="${tripDay()}"/></label>
       <button class="btn ghost" id="startToday">오늘부터 1주차로 시작하기</button>
       <div class="muted">12주 코스는 시작일 기준으로 한 주에 한 유닛씩 열려요. 진도·점수는 이 기기에만 저장돼서 사람마다 따로 관리돼요.</div>
     </div>
@@ -940,10 +940,10 @@ function renderSettings() {
       <label class="toggle"><input type="checkbox" id="pHangul" ${S.prefs.hangul ? "checked" : ""}/> 한글 발음 표기 [콘니치와] 보이기</label>
       <label class="toggle"><input type="checkbox" id="pAuto" ${S.prefs.autoplay ? "checked" : ""}/> 채팅에서 상대 대사 자동 읽기</label>
       <label class="toggle">말하기 속도 <input type="range" id="pRate" min="0.5" max="1.1" step="0.05" value="${S.prefs.rate}" style="flex:1"/> <span id="rateV">${S.prefs.rate}</span></label>
-      <button class="btn ghost" data-say="めんそーれ。沖縄へようこそ。">🔊 목소리 테스트</button>
+      <button class="btn ghost" data-say="めんそーれ。沖縄へようこそ。">${ic("speaker")}목소리 테스트</button>
       <div class="muted">더 자연스러운 목소리: 아이폰 설정 → 손쉬운 사용 → 읽기 및 말하기 → 음성 → 일본어 → Kyoko(향상된 음질) 다운로드</div>
     </div>`;
-  const conn = async () => { $("#conn").textContent = (await checkServer()) ? "🟢 연결됨" : "🔴 연결 안 됨"; };
+  const conn = async () => { $("#conn").textContent = (await checkServer()) ? "연결됨" : "연결 안 됨"; };
   conn();
   $("#saveTok").addEventListener("click", () => { S.token = $("#tok").value.trim(); save(); conn(); });
   const setDate = (k, v) => { if (v) { S.prefs[k] = v; save(); toast("일정을 저장했어요"); renderChips(); } };
@@ -976,6 +976,10 @@ function route() {
   else renderHome();
   renderChips();
 }
+// 하단 탭: 꺼졌을 땐 굵은 선, 켜졌을 땐 듀오톤 아이콘
+$("#tabs").innerHTML = [["home", "house", "홈"], ["talk", "chat", "회화"], ["speak", "mic", "말하기"], ["review", "cards", "복습"], ["book", "bookmark", "표현집"]]
+  .map(([k, i, t]) => k === "speak" ? `<button data-tab="${k}" class="center"><span>${ic("mic-b")}</span>${t}</button>`
+    : `<button data-tab="${k}">${ic(i + "-b", "off-only")}${ic(i, "on-only")}${t}</button>`).join("");
 document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => go(b.dataset.tab)));
 $("#status").addEventListener("click", () => go("settings"));
 window.addEventListener("hashchange", route);

@@ -217,6 +217,7 @@ const MIME = {
   ".json": "application/json; charset=utf-8",
   ".png": "image/png",
   ".svg": "image/svg+xml",
+  ".woff2": "font/woff2",
 };
 
 function serveStatic(req, res) {
@@ -225,7 +226,9 @@ function serveStatic(req, res) {
   if (!file.startsWith(PUBLIC + path.sep)) return json(res, 403, { error: "forbidden" });
   fs.readFile(file, (e, buf) => {
     if (e) return json(res, 404, { error: "not found" });
-    res.writeHead(200, { "Content-Type": MIME[path.extname(file)] || "application/octet-stream", "Cache-Control": "no-cache" });
+    // 글꼴 파일은 바뀌지 않으니 오래 캐시해요
+    const cache = urlPath.startsWith("/fonts/") && file.endsWith(".woff2") ? "public, max-age=31536000, immutable" : "no-cache";
+    res.writeHead(200, { "Content-Type": MIME[path.extname(file)] || "application/octet-stream", "Cache-Control": cache });
     res.end(buf);
   });
 }
